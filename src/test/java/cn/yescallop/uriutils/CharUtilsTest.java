@@ -1,9 +1,14 @@
 package cn.yescallop.uriutils;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 import static cn.yescallop.uriutils.CharUtils.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * @author Scallop Ye
@@ -15,8 +20,11 @@ public class CharUtilsTest {
         assertEquals(L_DIGIT, lowMask('0', '9'));
         assertEquals(H_DIGIT, highMask('0', '9'));
 
-        assertEquals(L_ALPHA, lowMask('A', 'Z') | lowMask('a', 'z'));
-        assertEquals(H_ALPHA, highMask('A', 'Z') | highMask('a', 'z'));
+        assertEquals(L_UPALPHA, lowMask('A', 'Z'));
+        assertEquals(H_UPALPHA, highMask('A', 'Z'));
+
+        assertEquals(L_LOWALPHA, lowMask('a', 'z'));
+        assertEquals(H_LOWALPHA, highMask('a', 'z'));
 
         assertEquals(L_HEXDIG, L_DIGIT | lowMask('A', 'F') | lowMask('a', 'f'));
         assertEquals(H_HEXDIG, H_DIGIT | highMask('A', 'F') | highMask('a', 'f'));
@@ -51,10 +59,45 @@ public class CharUtilsTest {
         String raw = "😃a 测试1`~!@#$%^&+=";
         String s = encode(raw, L_QUERY_FRAGMENT, H_QUERY_FRAGMENT);
         assertEquals("%F0%9F%98%83a%20%E6%B5%8B%E8%AF%951%60~!@%23$%25%5E&+=", s);
-        assertEquals(raw, decode(s));
+        assertEquals(raw, decode(s.toLowerCase()));
         s = encode("&+= ", L_QUERY_PARAM, H_QUERY_PARAM, true);
         assertEquals("%26%2B%3D+", s);
         assertEquals("&+= ", decode(s, true));
+        s = decode("a+b+c+d+e", true);
+        assertEquals("a b c d e", s);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> decode("%EX"),
+                "Malformed percent-encoded octet");
+    }
+
+    @Test
+    public void testCheckHostDnsCompatible() {
+        byte[] b = new byte[64];
+        Arrays.fill(b, (byte) 'a');
+        String[] compatibles = new String[]{
+                "a", "a.", "A-a", "a-A.B-b",
+                new String(b, 0, 63, StandardCharsets.US_ASCII)
+        };
+        String[] incompatibles = new String[]{
+                "", ".", ".a", "a-", "-a",
+                "a.-a.a", "a.a-.a", "a..a",
+                "a@a", "a_a.com",
+                new String(new byte[254], StandardCharsets.US_ASCII),
+                new String(b, StandardCharsets.US_ASCII)
+        };
+
+        for (String s : compatibles) {
+            checkHostDnsCompatible(s);
+        }
+        for (String s : incompatibles) {
+            try {
+                checkHostDnsCompatible(s);
+            } catch (IllegalArgumentException e) {
+                continue;
+            }
+            Assertions.fail("Exception not thrown");
+        }
     }
 
     // Computes the low-order mask for the characters in the given string

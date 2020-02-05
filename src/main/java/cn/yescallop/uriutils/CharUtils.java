@@ -12,7 +12,7 @@ import java.nio.charset.StandardCharsets;
  *
  * @author Scallop Ye
  */
-public class CharUtils {
+public final class CharUtils {
 
     // Thread-local UTF-8 encoder and decoder
     private static final ThreadLocal<CharsetEncoder> ENCODER =
@@ -30,9 +30,9 @@ public class CharUtils {
     public static boolean match(char c, long lowMask, long highMask) {
         if (c == 0) // 0 doesn't have a slot in the mask. So, it never matches.
             return false;
-        if ((c & 0xFFC0) == 0) // c < 64
+        if (c < 64)
             return ((1L << c) & lowMask) != 0;
-        if ((c & 0xFF80) == 0) // c < 128
+        if (c < 128)
             return ((1L << (c ^ 64)) & highMask) != 0;
         return false;
     }
@@ -42,8 +42,14 @@ public class CharUtils {
     public static final long L_DIGIT = 0x3FF000000000000L;
     public static final long H_DIGIT = 0L;
 
-    public static final long L_ALPHA = 0L;
-    public static final long H_ALPHA = 0x7FFFFFE07FFFFFEL;
+    public static final long L_UPALPHA = 0L;
+    public static final long H_UPALPHA = 0x7FFFFFEL;
+
+    public static final long L_LOWALPHA = 0L;
+    public static final long H_LOWALPHA = 0x7FFFFFE00000000L;
+
+    public static final long L_ALPHA = L_LOWALPHA | L_UPALPHA;
+    public static final long H_ALPHA = H_LOWALPHA | H_UPALPHA;
 
     // HEXDIG        = DIGIT / "A" / "B" / "C" / "D" / "E" / "F" /
     //                         "a" / "b" / "c" / "d" / "e" / "f"
@@ -99,6 +105,8 @@ public class CharUtils {
     public static final long L_QUERY_PARAM = L_QUERY_FRAGMENT ^ 0x2000084000000000L;
     public static final long H_QUERY_PARAM = H_QUERY_FRAGMENT;
 
+    private static final int CASE_DIFF = 'a' - 'A';
+
     // -- Escaping and encoding --
 
     private static final char[] hexDigits = {
@@ -146,7 +154,7 @@ public class CharUtils {
         int len = s.length();
         for (int i = 0; i < len; i++) {
             char c = s.charAt(i);
-            if ((c & 0xFF80) == 0) { // c < 0x80
+            if (c < 0x80) {
                 if (!match(c, lowMask, highMask)) {
                     if (sb == null) {
                         sb = new StringBuilder();
@@ -180,13 +188,14 @@ public class CharUtils {
                 cb.limit(limit);
                 cb.position(0);
                 appendEncoded(sb, cb, bb);
-            } else {
-                if (sb != null)
-                    sb.append(c);
+            } else if (sb != null) {
+                sb.append(c);
             }
         }
         return (sb == null) ? s : sb.toString();
     }
+
+    // -- Decoding --
 
     private static int decode(char c) {
         if ((c >= '0') && (c <= '9'))
@@ -195,7 +204,7 @@ public class CharUtils {
             return c - 'a' + 10;
         if ((c >= 'A') && (c <= 'F'))
             return c - 'A' + 10;
-        return -1;
+        throw new IllegalArgumentException("Malformed percent-encoded octet");
     }
 
     private static byte decode(char c1, char c2) {
@@ -256,4 +265,109 @@ public class CharUtils {
         return cb.flip().toString();
     }
 
+    // -- Scanning and checking --
+
+    private static void fail(String input, String reason, int p) {
+        throw new IllegalArgumentException(new UriSyntaxException(input, reason, p));
+    }
+
+    static void failExpecting(String input, String expected, int p) {
+        fail(input, "Expected " + expected, p);
+    }
+
+    // Scans a potential escape sequence, starting at the given position,
+    // with the given first char (i.e., charAt(start) == c).
+    private static boolean scanPctEncoded(String input,
+                                          int start, int n, char first) {
+        if (first == '%') {
+            // Process escape pair
+            if ((start + 3 <= n)
+                    && match(input.charAt(start + 1), L_HEXDIG, H_HEXDIG)
+                    && match(input.charAt(start + 2), L_HEXDIG, H_HEXDIG)) {
+                return true;
+            }
+            fail(input, "Malformed percent-encoded octet", start);
+        }
+        return false;
+    }
+
+    // Scans chars that match the given mask pair
+    private static int scan(String input,
+                            int start, int n, long lowMask, long highMask) {
+        int p = start;
+        boolean allowPctEncoded = (lowMask & L_PCT_ENCODED) != 0;
+        while (p < n) {
+            char c = input.charAt(p);
+            if (match(c, lowMask, highMask)) {
+                p++;
+                continue;
+            }
+            if (allowPctEncoded) {
+                boolean enc = scanPctEncoded(input, p, n, c);
+                if (enc) {
+                    p += 3;
+                    continue;
+                }
+            }
+            break;
+        }
+        return p;
+    }
+
+    // Checks that each of the chars in [start, end) matches the given mask
+    static void checkChars(String input, int start, int end,
+                           long lowMask, long highMask, String what) {
+        int p = scan(input, start, end, lowMask, highMask);
+        if (p < end)
+            fail(input, "Illegal character in " + what, p);
+    }
+
+    static void checkChars(String input,
+                           long lowMask, long highMask, String what) {
+        checkChars(input, 0, input.length(), lowMask, highMask, what);
+    }
+
+    // Checks that the char at position p matches the given mask
+    static void checkChar(String input, int p,
+                          long lowMask, long highMask, String what) {
+        if (!match(input.charAt(p), lowMask, highMask))
+            fail(input, "Illegal character in " + what, p);
+    }
+
+    static void checkHostDnsCompatible(String host) {
+        int len = host.length();
+        if (len == 0)
+            throw new IllegalArgumentException("Empty host");
+        if (len > 253)
+            throw new IllegalArgumentException("Host length > 253 for DNS");
+        int lastLabelStart = 0;
+        boolean lastDash = false;
+        char c;
+        for (int i = 0; i <= len; i++) {
+            if (i == len) {
+                if (lastDash) break;
+                if (i - lastLabelStart > 63) break;
+                return;
+            } else if ((c = host.charAt(i)) == '.') {
+                if (lastLabelStart == i || lastDash) break;
+                if (i - lastLabelStart > 63) break;
+                lastLabelStart = i + 1;
+                lastDash = false;
+            } else if (c == '-') {
+                if (lastLabelStart == i) break;
+                lastDash = true;
+            } else {
+                if (!match(c, L_ALPHA | L_DIGIT, H_ALPHA | H_DIGIT))
+                    break;
+                lastDash = false;
+            }
+        }
+        throw new IllegalArgumentException("Host syntax incompatible for DNS: " + host);
+    }
+
+    // Checks that the given substring contains a legal IPv6 address
+    static boolean isLegalIpv6Address(String s, int start, int n) {
+        // TODO: Implement IPv6 address checking
+        return false;
+    }
 }

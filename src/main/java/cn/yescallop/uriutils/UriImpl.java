@@ -26,8 +26,54 @@ class UriImpl implements Uri {
     private String path;
     private String fragment;
 
-    UriImpl() {
-        // used by builders
+    UriImpl(UriBuilderImpl b) {
+        encodedPath = b.pathBuilder != null ?
+                b.pathBuilder.toString() : b.path;
+        if (!encodedPath.isEmpty()
+                && encodedPath.charAt(0) != '/') { // path-rootless
+            // When authority is present, the path must
+            // either be empty or begin with a slash ("/") character (Section 3).
+            if (b.host != null)
+                throw new IllegalArgumentException("Rootless path with authority present");
+
+            // When scheme is not present, a rootless path
+            // must not contain any colon in its first segment,
+            // to bypass which a dot segment needs to precede the path (Section 4.2).
+            if (b.scheme == null // path-noscheme
+                    && !isLegalNoSchemePath(encodedPath)) {
+                encodedPath = "./" + encodedPath;
+            }
+        }
+
+        scheme = b.scheme;
+        if (b.encodedHost != null) {
+            encodedHost = b.encodedHost;
+        } else if (b.host != null) {
+            host = b.host;
+            if (host.indexOf(':') >= 0) {
+                if (!isLegalIpv6Address(host, 0, host.length())) {
+                    failExpecting(host, "legal IPv6 address", 0);
+                }
+                encodedHost = '[' + host + ']';
+            } else {
+                boolean dnsCompatible = b.hostEncodingOption != null ?
+                        b.hostEncodingOption == HostEncodingOption.DNS_COMPATIBLE :
+                        isSchemeDnsCompatible();
+                if (dnsCompatible) {
+                    encodedHost = IDN.toASCII(host, IDN.ALLOW_UNASSIGNED);
+                    checkHostDnsCompatible(encodedHost);
+                } else {
+                    encodedHost = encode(host, L_REG_NAME, H_REG_NAME);
+                }
+            }
+        }
+        if (encodedHost != null) {
+            encodedUserInfo = b.userInfo;
+            port = b.port;
+        }
+        encodedQuery = b.queryBuilder != null ?
+                b.queryBuilder.toString() : b.query;
+        encodedFragment = b.fragment;
     }
 
     UriImpl(String s) throws UriSyntaxException {
@@ -35,8 +81,16 @@ class UriImpl implements Uri {
     }
 
     @Override
-    public UriBuilder asBuilder() {
-        return null;
+    public Builder asBuilder() {
+        UriBuilderImpl b = new UriBuilderImpl();
+        b.scheme = scheme;
+        b.userInfo = encodedUserInfo;
+        b.encodedHost = encodedHost;
+        b.port = port;
+        b.path = encodedPath;
+        b.query = encodedQuery;
+        b.fragment = encodedFragment;
+        return b;
     }
 
     @Override
@@ -58,8 +112,13 @@ class UriImpl implements Uri {
 
     @Override
     public String host() {
-        if (host == null && encodedHost != null)
-            host = decode(IDN.toUnicode(encodedHost));
+        if (host == null && encodedHost != null) {
+            int len = encodedHost.length();
+            if (encodedHost.charAt(0) == '[' // IPv6: no need to check length
+                    && encodedHost.charAt(len - 1) == ']') {
+                host = encodedHost.substring(1, len - 1);
+            } else host = decode(IDN.toUnicode(encodedHost, IDN.ALLOW_UNASSIGNED));
+        }
         return host;
     }
 
@@ -212,6 +271,23 @@ class UriImpl implements Uri {
         return toString().hashCode();
     }
 
+    private boolean isSchemeDnsCompatible() {
+        // TODO
+        return false;
+    }
+
+    private boolean isLegalNoSchemePath(String s) {
+        int len = s.length();
+        for (int i = 0; i < len; i++) {
+            char c = s.charAt(i);
+            if (c == ':')
+                return false;
+            if (c == '/')
+                return true;
+        }
+        return true;
+    }
+
     private void buildString() {
         StringBuilder sb = new StringBuilder();
         if (scheme != null) {
@@ -229,6 +305,7 @@ class UriImpl implements Uri {
             sb.append(encodedHost);
             if (hasColon) sb.append(']');
             if (port >= 0) {
+                sb.append(':');
                 sb.append(port);
             }
         }
@@ -245,7 +322,7 @@ class UriImpl implements Uri {
     }
 
     // Four of the most general delimiters
-    private static char[] DELIMS = {':', '/', '?', '#'};
+    private static final char[] DELIMS = {':', '/', '?', '#'};
 
     private class Parser {
 
@@ -416,7 +493,7 @@ class UriImpl implements Uri {
             int p = start;
             int at = scan(p, n, '@');
             if (at != n) {
-                checkChars(p, at, L_USERINFO, H_USERINFO, "userInfo");
+                checkChars(p, at, L_USERINFO, H_USERINFO, "userinfo");
                 encodedUserInfo = input.substring(p, at);
                 p = at + 1;
             }
@@ -429,19 +506,12 @@ class UriImpl implements Uri {
                 n = colon;
             }
             if (at(p, n, '[') && at(n - 1, n, ']')) {
-                p += 1;
-                n -= 1;
-                checkIpv6Address(p, n);
+                if (!isLegalIpv6Address(input, p + 1, n - 1))
+                    failExpecting("legal IPv6 address", p + 1);
             } else {
                 checkChars(p, n, L_REG_NAME, H_REG_NAME, "host");
             }
             encodedHost = input.substring(p, n);
-        }
-
-        // Checks that the given substring contains a legal IPv6 address
-        private void checkIpv6Address(int start, int n) throws UriSyntaxException {
-            // TODO: Implement IPv6 address checking
-            fail("Unsupported IPv6 address", start);
         }
     }
 }

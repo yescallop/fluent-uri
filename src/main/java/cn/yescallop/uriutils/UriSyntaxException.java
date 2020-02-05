@@ -23,10 +23,6 @@ public class UriSyntaxException extends Exception {
         this.index = index;
     }
 
-    public UriSyntaxException(String input, String reason) {
-        this(input, reason, -1);
-    }
-
     public String input() {
         return input;
     }

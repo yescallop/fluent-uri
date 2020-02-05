@@ -13,9 +13,11 @@ import java.util.Map;
 public interface Uri {
 
     /**
-     * Creates a Uri from the given encoded URI string.
+     * Creates a Uri from the given encoded URI-reference string.
      *
-     * @param str an RFC 3986-compliant, encoded URI
+     * @param str an RFC 3986-compliant, encoded URI-reference, as defined in Section 4.1
+     * @throws IllegalArgumentException if the input string does not conform to
+     * the syntax specified in RFC 3986.
      */
     static Uri from(String str) {
         try {
@@ -26,9 +28,16 @@ public interface Uri {
     }
 
     /**
+     * Creates a new empty builder.
+     */
+    static Builder newBuilder() {
+        return new UriBuilderImpl();
+    }
+
+    /**
      * Creates a new builder, copying the attributes from this Uri.
      */
-    UriBuilder asBuilder();
+    Builder asBuilder();
 
     /**
      * Gets the scheme of this Uri.
@@ -150,4 +159,158 @@ public interface Uri {
      * Converts this Uri into {@link URI}.
      */
     URI toURI();
+
+    /**
+     * A builder of {@link Uri}.
+     */
+    interface Builder {
+
+        /**
+         * Encodes and sets the scheme.
+         *
+         * @param scheme the scheme or null
+         * @return this builder
+         */
+        Builder scheme(String scheme);
+
+        /**
+         * Encodes and sets the user information.
+         *
+         * @param userInfo the user info or null
+         * @return this builder
+         */
+        Builder userInfo(String userInfo);
+
+        /**
+         * Sets the encoded user information.
+         *
+         * @param encodedUserInfo the encoded user info or null
+         * @return this builder.
+         */
+        Builder encodedUserInfo(String encodedUserInfo);
+
+        /**
+         * Encodes and sets the host.
+         *
+         * @param host the host or null
+         * @return this builder
+         */
+        Builder host(String host);
+
+        /**
+         * Sets the encoding option for host.
+         * <p>
+         * If not set, the encoding option will be {@link HostEncodingOption#DNS_COMPATIBLE}
+         * if the scheme requires DNS resolution for the host, or else {@link HostEncodingOption#PERCENT_ENCODED}.
+         *
+         * @param option the encoding option
+         * @return this builder
+         */
+        Builder hostEncodingOption(HostEncodingOption option);
+
+        /**
+         * Sets the encoded host.
+         *
+         * @param encodedHost the encoded host or null
+         * @return this builder
+         */
+        Builder encodedHost(String encodedHost);
+
+        /**
+         * Sets the port.
+         *
+         * @param port the port or -1 if not present
+         * @return this builder
+         */
+        Builder port(int port);
+
+        /**
+         * Encodes and sets the path.
+         *
+         * @param path the path
+         * @return this builder.
+         */
+        Builder path(String path);
+
+        /**
+         * Encodes and appends the given path segment to the current path.
+         *
+         * @param segment a path segment
+         * @return this builder
+         */
+        Builder appendPathSegment(String segment);
+
+        /**
+         * Sets the encoded path.
+         *
+         * @param encodedPath the encoded path
+         * @return this builder
+         * @throws IllegalStateException if the path has already been appended to
+         */
+        Builder encodedPath(String encodedPath);
+
+        /**
+         * Encodes and appends the given query parameter pair to the current query.
+         *
+         * @param name name of the parameter
+         * @param value value of the parameter
+         * @return this builder
+         */
+        Builder appendQueryParameter(String name, String value);
+
+        /**
+         * Sets the encoded query.
+         *
+         * @param encodedQuery the encoded query or null
+         * @return this builder
+         * @throws IllegalStateException if the query has already been appended to
+         */
+        Builder encodedQuery(String encodedQuery);
+
+        /**
+         * Clears the current query.
+         *
+         * @return this builder
+         * @throws IllegalStateException if the query has already been appended to
+         */
+        Builder clearQuery();
+
+        /**
+         * Encodes and sets the fragment.
+         *
+         * @param fragment the fragment or null
+         * @return this builder
+         */
+        Builder fragment(String fragment);
+
+        /**
+         * Sets the encoded fragment.
+         *
+         * @param encodedFragment the encoded fragment or null
+         * @return this builder
+         */
+        Builder encodedFragment(String encodedFragment);
+
+        /**
+         * Builds the Uri.
+         */
+        Uri build();
+    }
+
+    /**
+     * Options for encoding a host
+     */
+    enum HostEncodingOption {
+        /**
+         * Encodes the host with percent-encoded octets.
+         */
+        PERCENT_ENCODED,
+        /**
+         * Encodes the host with IDNA encoding defined in
+         * <a href="https://www.ietf.org/rfc/rfc3490.html">RFC 3490</a>,
+         * using the method in {@link java.net.IDN}, and checks whether
+         * the encoded host name conforms to the DNS syntax.
+         */
+        DNS_COMPATIBLE
+    }
 }
