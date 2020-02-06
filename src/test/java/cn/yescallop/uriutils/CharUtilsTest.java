@@ -1,14 +1,12 @@
 package cn.yescallop.uriutils;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 import static cn.yescallop.uriutils.CharUtils.*;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author Scallop Ye
@@ -96,8 +94,66 @@ public class CharUtilsTest {
             } catch (IllegalArgumentException e) {
                 continue;
             }
-            Assertions.fail("Exception not thrown");
+            fail("Exception not thrown");
         }
+    }
+
+    @Test
+    public void testCheckIpv6Address() {
+        String[] legals = new String[]{
+                "::", "1234:5678:90AB:CDEF:1234:5678:90AB:CDEF",
+                "0:a:b:c:d:e:f:0", "::0:0:0:0:0:0:0", "0:0:0:0:0:0:0::",
+                "a:b::c:d", "::cd", "FFFF::1.1.1.1", "::1.1.1.1",
+                "a:b:c:d:e::1.1.1.1", "a:b::255.133.244.255"
+        };
+        String[] illegals = new String[]{
+                ":0", "0:", ":::", "::cd::", "0:a:b:c:d:e:f:g", "0:a:b:c:d:e:f:0:0",
+                "a:b::255.255.255.256", "a:b:c:d:e:f::1.1.1.1",
+                "a:b::1.2.3.a", "a:b::01.2.3.4", "aaaaa::"
+        };
+        String[] legalZoneIds = new String[]{
+                "0", "1", "en1", "eth0", "0a-.~_%20"
+        };
+        String[] illegalZoneIds = new String[]{
+                "", "<>", "a^b"
+        };
+
+        for (String s : legals) {
+            try {
+                checkIpv6Address(s, 0, s.length(), false);
+            } catch (UriSyntaxException e) {
+                fail(e);
+            }
+        }
+        for (String s : illegals) {
+            try {
+                checkIpv6Address(s, 0, s.length(), false);
+            } catch (UriSyntaxException e) {
+                continue;
+            }
+            fail("Exception not thrown: " + s);
+        }
+
+        for (String s : legalZoneIds) {
+            try {
+                checkIpv6Address("::%" + s, 0, s.length() + 3, false);
+                checkIpv6Address("::%25" + s, 0, s.length() + 5, true);
+            } catch (UriSyntaxException e) {
+                fail(e);
+            }
+        }
+        for (String s : illegalZoneIds) {
+            try {
+                checkIpv6Address("::%25" + s, 0, s.length() + 5, true);
+            } catch (UriSyntaxException e) {
+                continue;
+            }
+            fail("Exception not thrown:" + s);
+        }
+
+        assertThrows(UriSyntaxException.class,
+                () -> checkIpv6Address("::%0", 0, 4, true),
+                "Expected %25 at index 2: ::%0");
     }
 
     // Computes the low-order mask for the characters in the given string

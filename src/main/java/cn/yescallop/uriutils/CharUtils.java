@@ -105,6 +105,10 @@ public final class CharUtils {
     public static final long L_QUERY_PARAM = L_QUERY_FRAGMENT ^ 0x2000084000000000L;
     public static final long H_QUERY_PARAM = H_QUERY_FRAGMENT;
 
+    // RFC 6874: ZoneID = 1*( unreserved / pct-encoded )
+    public static final long L_ZONE_ID = L_UNRESERVED | L_PCT_ENCODED;
+    public static final long H_ZONE_ID = H_UNRESERVED | H_PCT_ENCODED;
+
     private static final int CASE_DIFF = 'a' - 'A';
 
     // -- Escaping and encoding --
@@ -271,8 +275,12 @@ public final class CharUtils {
         throw new IllegalArgumentException(new UriSyntaxException(input, reason, p));
     }
 
-    static void failExpecting(String input, String expected, int p) {
-        fail(input, "Expected " + expected, p);
+    private static void failUSE(String input, String reason, int p) throws UriSyntaxException {
+        throw new UriSyntaxException(input, reason, p);
+    }
+
+    private static void failUSEExpecting(String input, String expected, int p) throws UriSyntaxException {
+        throw new UriSyntaxException(input, "Expected " + expected, p);
     }
 
     // Scans a potential escape sequence, starting at the given position,
@@ -289,6 +297,18 @@ public final class CharUtils {
             fail(input, "Malformed percent-encoded octet", start);
         }
         return false;
+    }
+
+    // Scans the given char, starting at the given position
+    private static int scan(String input, int start, int n, char ch) {
+        int p = start;
+        while (p < n) {
+            char cur = input.charAt(p);
+            if (cur == ch)
+                break;
+            p++;
+        }
+        return p;
     }
 
     // Scans chars that match the given mask pair
@@ -334,6 +354,8 @@ public final class CharUtils {
             fail(input, "Illegal character in " + what, p);
     }
 
+    // Checks that the host is compatible with DNS
+    // TODO: Check the syntax
     static void checkHostDnsCompatible(String host) {
         int len = host.length();
         if (len == 0)
@@ -366,8 +388,118 @@ public final class CharUtils {
     }
 
     // Checks that the given substring contains a legal IPv6 address
-    static boolean isLegalIpv6Address(String s, int start, int n) {
-        // TODO: Implement IPv6 address checking
-        return false;
+    // See Section 3.2.2, RFC 3986; Section 2, RFC 6874.
+    static void checkIpv6Address(String s, int start, int n, boolean encoded)
+            throws UriSyntaxException {
+        int len = n - start;
+        if (len < 2) failUSEExpecting(s, "IPv6 address", start);
+
+        int p = scan(s, start, n, '%');
+        if (p != n) {
+            int z;
+            if (encoded) {
+                if (p + 2 >= n
+                        || s.charAt(p + 1) != '2'
+                        || s.charAt(p + 2) != '5') {
+                    failUSEExpecting(s, "%25", p);
+                }
+                z = p + 3;
+                if (scan(s, z, n, L_ZONE_ID, H_ZONE_ID) < n)
+                    failUSE(s, "Illegal character in zone ID", z);
+            } else z = p + 1;
+            if (z == n)
+                failUSEExpecting(s, "zone ID", z);
+
+            n = p;
+        }
+
+        len = n - start;
+        // longest: 0000:0000:0000:0000:0000:0000:255.255.255.255
+        if (len < 2 || len > 45) failUSEExpecting(s, "IPv6 address", start);
+
+        int minSeqCount = 0;
+        int lastColon = start - 1;
+        boolean compressed = false;
+
+        for (int i = start; i <= n; i++) {
+            char c;
+            if (i == n) {
+                if (lastColon != n - 1) {
+                    minSeqCount++;
+                } else if (!compressed) { // ending with single colon
+                    failUSE(s, "Malformed IPv6 address", start);
+                }
+            } else if ((c = s.charAt(i)) == ':') {
+                if (i == lastColon + 1) {
+                    if (compressed)
+                        failUSE(s, "Multiple compressions in IPv6 address", lastColon);
+                    if (i == start) {
+                        if (s.charAt(++i) != ':')
+                            failUSE(s, "Malformed IPv6 address", start);
+                    }
+                    compressed = true;
+                } else {
+                    // hex seq len > 4
+                    if (i - lastColon > 5)
+                        failUSE(s, "Hex sequence too long", lastColon + 1);
+                }
+                minSeqCount++;
+                lastColon = i;
+            } else if (c == '.') {
+                if (!isIpv4Address(s, lastColon + 1, n))
+                    failUSEExpecting(s, "IPv4 address", lastColon + 1);
+                minSeqCount += 2;
+                break;
+            } else if (!match(c, L_HEXDIG, H_HEXDIG)) {
+                failUSE(s, "Illegal character in IPv6 address", i);
+            }
+        }
+        if (minSeqCount > 8)
+            failUSE(s, "IPv6 address too long", start);
+    }
+
+    private static boolean isIpv4Address(String s, int start, int n) {
+        int len = n - start;
+        // shortest: 0.0.0.0
+        // longest: 255.255.255.255
+        if (len < 7 || len > 15) return false;
+
+        int lastDot = start - 1;
+        int dotCnt = 0;
+
+        for (int i = start; i < n; i++) {
+            char c = s.charAt(i);
+            if (c == '.') {
+                if (dotCnt > 3) return false;
+                if (!isDecOctet(s, lastDot + 1, i))
+                    return false;
+                dotCnt++;
+                lastDot = i;
+            } else if (c < '0' || c > '9') {
+                return false;
+            }
+        }
+        return isDecOctet(s, lastDot + 1, n);
+    }
+
+    private static boolean isDecOctet(String s, int start, int n) {
+        int len = n - start;
+        if (len == 0 || len > 3) return false;
+
+        char c1 = s.charAt(start);
+        if (len != 1) {
+            if (c1 == '0')
+                return false;
+            char c2 = s.charAt(start + 1);
+            if (len == 3) {
+                char c3 = s.charAt(start + 2);
+                if (c1 == '2') {
+                    if (c2 == '5') {
+                        return c3 <= '5';
+                    } else return c2 <= '5';
+                } else return c1 == '1';
+            }
+        }
+        return true;
     }
 }

@@ -16,15 +16,11 @@ public interface Uri {
      * Creates a Uri from the given encoded URI-reference string.
      *
      * @param str an RFC 3986-compliant, encoded URI-reference, as defined in Section 4.1
-     * @throws IllegalArgumentException if the input string does not conform to
+     * @throws UriSyntaxException if the input string does not conform to
      * the syntax specified in RFC 3986.
      */
-    static Uri from(String str) {
-        try {
-            return new UriImpl(str);
-        } catch (UriSyntaxException e) {
-            throw new IllegalArgumentException(e.getMessage(), e);
-        }
+    static Uri from(String str) throws UriSyntaxException {
+        return new UriImpl(str);
     }
 
     /**

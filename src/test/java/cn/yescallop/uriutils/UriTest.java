@@ -18,7 +18,7 @@ public class UriTest {
             "?k%201=v%261&%E9%94%AE=v%3D2#?%23";
 
     @Test
-    public void testParse() {
+    public void testParse() throws UriSyntaxException {
         Uri u = Uri.from(ALL);
         assertEquals("http", u.scheme());
         assertEquals("us%20er:in%40fo", u.encodedUserInfo());
@@ -85,13 +85,17 @@ public class UriTest {
         assertNull(params.get("k1").get(0));
         assertNull(params.get("k2").get(0));
 
-
         // Containing encoded slash "%2F" in the path
         u = Uri.from("%2F");
         assertNull(u.path());
         segments = u.pathSegments();
         assertEquals(1, segments.size());
         assertEquals("/", segments.get(0));
+
+        // IPv6 host
+        u = Uri.from("//[fe80::ebad:9145:fe66:55cc%25a%2Bb]:80");
+        assertEquals("fe80::ebad:9145:fe66:55cc%a+b", u.host());
+        assertEquals(80, u.port());
     }
 
     @Test
@@ -166,27 +170,38 @@ public class UriTest {
                 .hostEncodingOption(Uri.HostEncodingOption.PERCENT_ENCODED)
                 .build();
         assertEquals("//%E6%B5%8B%E8%AF%95", u.toString());
+
+        // IPv6 host
+        u = Uri.newBuilder()
+                .host("fe80::ebad:9145:fe66:55cc%a+b") // scoped
+                .build();
+        assertEquals("//[fe80::ebad:9145:fe66:55cc%25a%2Bb]", u.toString());
+
+        u = Uri.newBuilder()
+                .host("::1") // not scoped
+                .build();
+        assertEquals("//[::1]", u.toString());
     }
 
     @Test
     public void testParsingExceptions() {
-        assertIAE(() -> Uri.from("%EX"), "Malformed percent-encoded octet");
+        assertUSE(() -> Uri.from("%EX"), "Malformed percent-encoded octet");
         // Empty scheme
-        assertIAE(() -> Uri.from(":"), "Expected scheme");
+        assertUSE(() -> Uri.from(":"), "Expected scheme");
         // Illegal scheme
-        assertIAE(() -> Uri.from("_:"), "Illegal character in scheme");
+        assertUSE(() -> Uri.from("_:"), "Illegal character in scheme");
         // Illegal userinfo
-        assertIAE(() -> Uri.from("a://<@a"), "Illegal character in userinfo");
+        assertUSE(() -> Uri.from("a://<@a"), "Illegal character in userinfo");
         // Illegal host
-        assertIAE(() -> Uri.from("a://<"), "Illegal character in host");
+        assertUSE(() -> Uri.from("a://<"), "Illegal character in host");
         // Illegal port
-        assertIAE(() -> Uri.from("a://a:-1"), "Illegal character in port");
+        assertUSE(() -> Uri.from("a://a:-1"), "Illegal character in port");
         // Illegal path
-        assertIAE(() -> Uri.from("a:<"), "Illegal character in path");
+        assertUSE(() -> Uri.from("a:<"), "Illegal character in path");
         // Illegal query
-        assertIAE(() -> Uri.from("?<"), "Illegal character in query");
+        assertUSE(() -> Uri.from("?<"), "Illegal character in query");
         // Illegal fragment
-        assertIAE(() -> Uri.from("#<"), "Illegal character in fragment");
+        assertUSE(() -> Uri.from("#<"), "Illegal character in fragment");
     }
 
     @Test
@@ -203,9 +218,9 @@ public class UriTest {
         assertIAE(() -> b.encodedUserInfo("@"));
         // Illegal IPv6 address
         b.host("IL:LE:GA:L");
-        assertIAE(b::build, "Expected legal IPv6 address");
+        assertIAE(b::build, "Illegal character in IPv6 address");
         // Illegal encoded IPv6 address
-        assertIAE(() -> b.encodedHost("[ILLEGAL]"), "Expected legal IPv6 address");
+        assertIAE(() -> b.encodedHost("[ILLEGAL]"), "Illegal character in IPv6 address");
         // Illegal port
         assertIAE(() -> b.port(-2));
         // Illegal query
@@ -253,6 +268,19 @@ public class UriTest {
                 return;
             }
             fail("Not IAE", t);
+        }
+        fail("Exception not thrown");
+    }
+
+    private static void assertUSE(Executable e, String reason) {
+        try {
+            e.execute();
+        } catch (Throwable t) {
+            if (t instanceof UriSyntaxException) {
+                assertEquals(reason, ((UriSyntaxException) t).reason());
+                return;
+            }
+            fail("Not USE", t);
         }
         fail("Exception not thrown");
     }

@@ -2,6 +2,7 @@ package cn.yescallop.uriutils;
 
 import java.net.IDN;
 import java.net.URI;
+import java.nio.CharBuffer;
 import java.util.*;
 
 import static cn.yescallop.uriutils.CharUtils.*;
@@ -51,10 +52,23 @@ class UriImpl implements Uri {
         } else if (b.host != null) {
             host = b.host;
             if (host.indexOf(':') >= 0) {
-                if (!isLegalIpv6Address(host, 0, host.length())) {
-                    failExpecting(host, "legal IPv6 address", 0);
+                try {
+                    checkIpv6Address(host, 0, host.length(), false);
+                } catch (UriSyntaxException e) {
+                    throw new IllegalArgumentException(e);
                 }
-                encodedHost = '[' + host + ']';
+                int pct = host.indexOf('%');
+                if (pct >= 0) { // scoped
+                    int len = host.length();
+                    String zoneId = encode(host.substring(pct + 1, len), L_ZONE_ID, H_ZONE_ID);
+                    encodedHost = '[' +
+                            host.substring(0, pct) +
+                            "%25" +
+                            zoneId +
+                            ']';
+                } else { // not scoped
+                    encodedHost = '[' + host + ']';
+                }
             } else {
                 boolean dnsCompatible = b.hostEncodingOption != null ?
                         b.hostEncodingOption == HostEncodingOption.DNS_COMPATIBLE :
@@ -114,9 +128,9 @@ class UriImpl implements Uri {
     public String host() {
         if (host == null && encodedHost != null) {
             int len = encodedHost.length();
-            if (encodedHost.charAt(0) == '[' // IPv6: no need to check length
+            if (len >= 2 && encodedHost.charAt(0) == '['
                     && encodedHost.charAt(len - 1) == ']') {
-                host = encodedHost.substring(1, len - 1);
+                host = decode(encodedHost.substring(1, len - 1));
             } else host = decode(IDN.toUnicode(encodedHost, IDN.ALLOW_UNASSIGNED));
         }
         return host;
@@ -300,10 +314,7 @@ class UriImpl implements Uri {
                 sb.append(encodedUserInfo);
                 sb.append('@');
             }
-            boolean hasColon = encodedHost.indexOf(':') >= 0;
-            if (hasColon) sb.append('[');
             sb.append(encodedHost);
-            if (hasColon) sb.append(']');
             if (port >= 0) {
                 sb.append(':');
                 sb.append(port);
@@ -364,7 +375,7 @@ class UriImpl implements Uri {
             return res;
         }
 
-        // Scans the given char, starting at the given position
+        // Scans the given char
         private int scan(int start, int n, char ch) {
             int p = start;
             while (p < n) {
@@ -374,6 +385,19 @@ class UriImpl implements Uri {
                 p++;
             }
             return p;
+        }
+
+        // Scans the given char backwards
+        private int scanBack(int start, int end, char ch, char stop) {
+            for (int i = start; i >= end; i--) {
+                char cur = input.charAt(i);
+                if (cur == ch) {
+                    return i;
+                } else if (cur == stop) {
+                    return -1;
+                }
+            }
+            return -1;
         }
 
         // Scans a potential escape sequence, starting at the given position,
@@ -497,8 +521,8 @@ class UriImpl implements Uri {
                 encodedUserInfo = input.substring(p, at);
                 p = at + 1;
             }
-            int colon = scan(p, n, ':');
-            if (colon != n) {
+            int colon = scanBack(n - 1, p, ':', ']');
+            if (colon >= 0) {
                 if (colon != n - 1) {
                     checkChars(colon + 1, n, L_DIGIT, H_DIGIT, "port");
                     port = Integer.parseInt(input.substring(colon + 1, n));
@@ -506,8 +530,7 @@ class UriImpl implements Uri {
                 n = colon;
             }
             if (at(p, n, '[') && at(n - 1, n, ']')) {
-                if (!isLegalIpv6Address(input, p + 1, n - 1))
-                    failExpecting("legal IPv6 address", p + 1);
+                checkIpv6Address(input, p + 1, n - 1, true);
             } else {
                 checkChars(p, n, L_REG_NAME, H_REG_NAME, "host");
             }

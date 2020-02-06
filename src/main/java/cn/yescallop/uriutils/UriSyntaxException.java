@@ -12,11 +12,11 @@ public class UriSyntaxException extends Exception {
     private final String reason;
     private final int index;
 
-    public UriSyntaxException(String input, String reason, int index) {
+    UriSyntaxException(String input, String reason, int index) {
         super();
         if (input == null || reason == null)
             throw new NullPointerException();
-        if (index < -1)
+        if (index < 0)
             throw new IllegalArgumentException("index");
         this.input = input;
         this.reason = reason;
