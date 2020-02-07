@@ -2,12 +2,13 @@ package cn.yescallop.uriutils;
 
 import java.net.IDN;
 import java.net.URI;
-import java.nio.CharBuffer;
 import java.util.*;
 
 import static cn.yescallop.uriutils.CharUtils.*;
 
 /**
+ * Implementation of {@link Uri}.
+ *
  * @author Scallop Ye
  */
 class UriImpl implements Uri {
@@ -61,21 +62,21 @@ class UriImpl implements Uri {
                 if (pct >= 0) { // scoped
                     int len = host.length();
                     String zoneId = encode(host.substring(pct + 1, len), L_ZONE_ID, H_ZONE_ID);
-                    encodedHost = '[' +
-                            host.substring(0, pct) +
-                            "%25" +
-                            zoneId +
-                            ']';
+                    StringBuilder sb = new StringBuilder(pct + zoneId.length() + 5);
+                    sb.append('[');
+                    sb.append(host, 0, pct);
+                    sb.append("%25");
+                    sb.append(zoneId);
+                    sb.append(']');
+                    encodedHost = sb.toString();
                 } else { // not scoped
                     encodedHost = '[' + host + ']';
                 }
             } else {
-                boolean dnsCompatible = b.hostEncodingOption != null ?
-                        b.hostEncodingOption == HostEncodingOption.DNS_COMPATIBLE :
-                        isSchemeDnsCompatible();
+                boolean dnsCompatible = b.hostEncodingOption == HostEncodingOption.DNS_COMPATIBLE;
                 if (dnsCompatible) {
                     encodedHost = IDN.toASCII(host, IDN.ALLOW_UNASSIGNED);
-                    checkHostDnsCompatible(encodedHost);
+                    checkDnsHost(encodedHost);
                 } else {
                     encodedHost = encode(host, L_REG_NAME, H_REG_NAME);
                 }
@@ -283,11 +284,6 @@ class UriImpl implements Uri {
     @Override
     public int hashCode() {
         return toString().hashCode();
-    }
-
-    private boolean isSchemeDnsCompatible() {
-        // TODO
-        return false;
     }
 
     private boolean isLegalNoSchemePath(String s) {

@@ -196,8 +196,7 @@ public interface Uri {
         /**
          * Sets the encoding option for host.
          * <p>
-         * If not set, the encoding option will be {@link HostEncodingOption#DNS_COMPATIBLE}
-         * if the scheme requires DNS resolution for the host, or else {@link HostEncodingOption#PERCENT_ENCODED}.
+         * The default value is {@link HostEncodingOption#DNS_COMPATIBLE}.
          *
          * @param option the encoding option
          * @return this builder

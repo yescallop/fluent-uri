@@ -18,11 +18,8 @@ public class CharUtilsTest {
         assertEquals(L_DIGIT, lowMask('0', '9'));
         assertEquals(H_DIGIT, highMask('0', '9'));
 
-        assertEquals(L_UPALPHA, lowMask('A', 'Z'));
-        assertEquals(H_UPALPHA, highMask('A', 'Z'));
-
-        assertEquals(L_LOWALPHA, lowMask('a', 'z'));
-        assertEquals(H_LOWALPHA, highMask('a', 'z'));
+        assertEquals(L_ALPHA, lowMask('A', 'Z') | lowMask('a', 'z'));
+        assertEquals(H_ALPHA, highMask('A', 'Z') | highMask('a', 'z'));
 
         assertEquals(L_HEXDIG, L_DIGIT | lowMask('A', 'F') | lowMask('a', 'f'));
         assertEquals(H_HEXDIG, H_DIGIT | highMask('A', 'F') | highMask('a', 'f'));
@@ -70,11 +67,11 @@ public class CharUtilsTest {
     }
 
     @Test
-    public void testCheckHostDnsCompatible() {
+    public void testCheckDnsHost() {
         byte[] b = new byte[64];
         Arrays.fill(b, (byte) 'a');
         String[] compatibles = new String[]{
-                "a", "a.", "A-a", "a-A.B-b",
+                "a", "a.", "A-a", "a-A.B-b", "1.1.1.1",
                 new String(b, 0, 63, StandardCharsets.US_ASCII)
         };
         String[] incompatibles = new String[]{
@@ -86,11 +83,11 @@ public class CharUtilsTest {
         };
 
         for (String s : compatibles) {
-            checkHostDnsCompatible(s);
+            checkDnsHost(s);
         }
         for (String s : incompatibles) {
             try {
-                checkHostDnsCompatible(s);
+                checkDnsHost(s);
             } catch (IllegalArgumentException e) {
                 continue;
             }

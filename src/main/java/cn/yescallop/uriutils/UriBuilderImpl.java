@@ -7,6 +7,8 @@ import java.util.Objects;
 import static cn.yescallop.uriutils.CharUtils.*;
 
 /**
+ * Implementation of {@link Uri.Builder}.
+ *
  * @author Scallop Ye
  */
 class UriBuilderImpl implements Uri.Builder {
@@ -15,7 +17,7 @@ class UriBuilderImpl implements Uri.Builder {
     String userInfo;
     String host;
     String encodedHost;
-    HostEncodingOption hostEncodingOption;
+    HostEncodingOption hostEncodingOption = HostEncodingOption.DNS_COMPATIBLE;
     int port = -1;
     String path = "";
     StringBuilder pathBuilder;

@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 public class UriTest {
 
-    private static String ALL = "http://us%20er:in%40fo@xn--h28h.com:8080" +
+    private static final String ALL = "http://us%20er:in%40fo@xn--h28h.com:8080" +
             "/pa%20th/%E6%B5%8B/%E8%AF%95" +
             "?k%201=v%261&%E9%94%AE=v%3D2#?%23";
 
@@ -106,7 +106,6 @@ public class UriTest {
                 .userInfo("us er:in@fo")
                 .host("😃.com")
                 .port(8080)
-                .hostEncodingOption(Uri.HostEncodingOption.DNS_COMPATIBLE)
                 .path("/pa th/测")
                 .appendPathSegment("试")
                 .appendQueryParameter("k 1", "v&1")

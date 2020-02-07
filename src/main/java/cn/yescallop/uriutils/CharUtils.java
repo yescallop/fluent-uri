@@ -8,7 +8,7 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Utilities for character checking and en/decoding
+ * Utilities for character checking and en/decoding.
  *
  * @author Scallop Ye
  */
@@ -42,14 +42,8 @@ public final class CharUtils {
     public static final long L_DIGIT = 0x3FF000000000000L;
     public static final long H_DIGIT = 0L;
 
-    public static final long L_UPALPHA = 0L;
-    public static final long H_UPALPHA = 0x7FFFFFEL;
-
-    public static final long L_LOWALPHA = 0L;
-    public static final long H_LOWALPHA = 0x7FFFFFE00000000L;
-
-    public static final long L_ALPHA = L_LOWALPHA | L_UPALPHA;
-    public static final long H_ALPHA = H_LOWALPHA | H_UPALPHA;
+    public static final long L_ALPHA = 0L;
+    public static final long H_ALPHA = 0x7FFFFFE07FFFFFEL;
 
     // HEXDIG        = DIGIT / "A" / "B" / "C" / "D" / "E" / "F" /
     //                         "a" / "b" / "c" / "d" / "e" / "f"
@@ -109,8 +103,6 @@ public final class CharUtils {
     public static final long L_ZONE_ID = L_UNRESERVED | L_PCT_ENCODED;
     public static final long H_ZONE_ID = H_UNRESERVED | H_PCT_ENCODED;
 
-    private static final int CASE_DIFF = 'a' - 'A';
-
     // -- Escaping and encoding --
 
     private static final char[] hexDigits = {
@@ -133,11 +125,7 @@ public final class CharUtils {
         bb.flip();
 
         while (bb.hasRemaining()) {
-            byte b = bb.get();
-            if ((b & 0x80) != 0) // (int) b >= 0x80
-                appendEscape(sb, b);
-            else
-                sb.append((char) b);
+            appendEscape(sb, bb.get());
         }
     }
 
@@ -150,30 +138,31 @@ public final class CharUtils {
     public static String encode(String s,
                                 long lowMask, long highMask,
                                 boolean encodeSpaceAsPlus) {
+        if ((lowMask & L_PCT_ENCODED) == 0)
+            throw new IllegalArgumentException("Mask pair not for encoding");
+
         StringBuilder sb = null;
         char[] ca = null;
         CharBuffer cb = null;
         ByteBuffer bb = null;
-        boolean allowNonASCII = ((lowMask & L_PCT_ENCODED) != 0);
         int len = s.length();
         for (int i = 0; i < len; i++) {
             char c = s.charAt(i);
             if (c < 0x80) {
                 if (!match(c, lowMask, highMask)) {
                     if (sb == null) {
-                        sb = new StringBuilder();
+                        sb = new StringBuilder(len + 16);
                         sb.append(s, 0, i);
                     }
                     if (encodeSpaceAsPlus && c == ' ') {
                         sb.append('+');
                     } else appendEscape(sb, (byte) c);
-                } else {
-                    if (sb != null)
-                        sb.append(c);
+                } else if (sb != null) {
+                    sb.append(c);
                 }
-            } else if (allowNonASCII) {
+            } else {
                 if (sb == null) {
-                    sb = new StringBuilder();
+                    sb = new StringBuilder(len + 16);
                     sb.append(s, 0, i);
                 }
                 if (ca == null) {
@@ -192,8 +181,6 @@ public final class CharUtils {
                 cb.limit(limit);
                 cb.position(0);
                 appendEncoded(sb, cb, bb);
-            } else if (sb != null) {
-                sb.append(c);
             }
         }
         return (sb == null) ? s : sb.toString();
@@ -354,9 +341,9 @@ public final class CharUtils {
             fail(input, "Illegal character in " + what, p);
     }
 
-    // Checks that the host is compatible with DNS
-    // TODO: Check the syntax
-    static void checkHostDnsCompatible(String host) {
+    // Checks that the given host is a legal DNS host.
+    // References: RFC 952, 1034, 1123, 2181.
+    static void checkDnsHost(String host) {
         int len = host.length();
         if (len == 0)
             throw new IllegalArgumentException("Empty host");

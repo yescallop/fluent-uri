@@ -37,14 +37,6 @@ public class UriSyntaxException extends Exception {
 
     @Override
     public String getMessage() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(reason);
-        if (index >= 0) {
-            sb.append(" at index ");
-            sb.append(index);
-        }
-        sb.append(": ");
-        sb.append(input);
-        return sb.toString();
+        return reason + " at index " + index + ": " + input;
     }
 }
