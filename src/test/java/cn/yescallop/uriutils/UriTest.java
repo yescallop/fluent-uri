@@ -1,5 +1,6 @@
 package cn.yescallop.uriutils;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -45,10 +46,6 @@ public class UriTest {
         assertEquals("?%23", u.encodedFragment());
         assertEquals("?#", u.fragment());
 
-        // Opaque
-        u = Uri.from("urn:opaque");
-        assertTrue(u.opaque());
-
         // Empty
         u = Uri.from("");
         assertNull(u.scheme());
@@ -59,12 +56,12 @@ public class UriTest {
         assertEquals(-1, u.port());
         assertTrue(u.encodedPath().isEmpty());
         assertTrue(u.path().isEmpty());
+        assertTrue(u.pathSegments().isEmpty());
         assertNull(u.encodedQuery());
         assertNull(u.queryParameters());
         assertNull(u.encodedFragment());
         assertNull(u.fragment());
-        assertFalse(u.opaque());
-        assertTrue(u.relative());
+        assertTrue(u.isRelative());
 
         // With empty userinfo, host and port
         u = Uri.from("//@:");
@@ -92,10 +89,71 @@ public class UriTest {
         assertEquals(1, segments.size());
         assertEquals("/", segments.get(0));
 
+        u = Uri.from("a//");
+        segments = u.pathSegments();
+        assertEquals(3, segments.size());
+        assertEquals("a", segments.get(0));
+        assertTrue(segments.get(1).isEmpty());
+        assertTrue(segments.get(2).isEmpty());
+
         // IPv6 host
         u = Uri.from("//[fe80::ebad:9145:fe66:55cc%25a%2Bb]:80");
         assertEquals("fe80::ebad:9145:fe66:55cc%a+b", u.host());
         assertEquals(80, u.port());
+    }
+
+    @Test
+    @Disabled("TODO")
+    public void testResolve() throws UriSyntaxException {
+        Uri u = Uri.from("http://a/b/c/d;p?q");
+        assertEquals("g:h", u.resolve("g:h").toString());
+        assertEquals("http://a/b/c/g", u.resolve("g").toString());
+        assertEquals("http://a/b/c/g", u.resolve("./g").toString());
+        assertEquals("http://a/b/c/g/", u.resolve("g/").toString());
+        assertEquals("http://a/g", u.resolve("/g").toString());
+        assertEquals("http://g", u.resolve("//g").toString());
+        assertEquals("http://a/b/c/d;p?y", u.resolve("?y").toString());
+        assertEquals("http://a/b/c/g?y", u.resolve("g?y").toString());
+        assertEquals("http://a/b/c/d;p?q#s", u.resolve("#s").toString());
+        assertEquals("http://a/b/c/g#s", u.resolve("g#s").toString());
+        assertEquals("http://a/b/c/g?y#s", u.resolve("g?y#s").toString());
+        assertEquals("http://a/b/c/;x", u.resolve(";x").toString());
+        assertEquals("http://a/b/c/g;x", u.resolve("g;x").toString());
+        assertEquals("http://a/b/c/g;x?y#s", u.resolve("g;x?y#s").toString());
+        assertEquals("http://a/b/c/d;p?q", u.resolve("").toString());
+        assertEquals("http://a/b/c/", u.resolve(".").toString());
+        assertEquals("http://a/b/c/", u.resolve("./").toString());
+        assertEquals("http://a/b/", u.resolve("..").toString());
+        assertEquals("http://a/b/", u.resolve("../").toString());
+        assertEquals("http://a/b/g", u.resolve("../g").toString());
+        assertEquals("http://a/", u.resolve("../..").toString());
+        assertEquals("http://a/", u.resolve("../../").toString());
+        assertEquals("http://a/g", u.resolve("../../g").toString());
+
+        assertEquals("http://a/g", u.resolve("../../../g").toString());
+        assertEquals("http://a/g", u.resolve("../../../../g").toString());
+
+        assertEquals("http://a/g", u.resolve("/./g").toString());
+        assertEquals("http://a/g", u.resolve("/../g").toString());
+        assertEquals("http://a/b/c/g.", u.resolve("g.").toString());
+        assertEquals("http://a/b/c/.g", u.resolve(".g").toString());
+        assertEquals("http://a/b/c/g..", u.resolve("g..").toString());
+        assertEquals("http://a/b/c/..g", u.resolve("..g").toString());
+
+        assertEquals("http://a/b/g", u.resolve("./../g").toString());
+        assertEquals("http://a/b/c/g/", u.resolve("./g/.").toString());
+        assertEquals("http://a/b/c/g/h", u.resolve("g/./h").toString());
+        assertEquals("http://a/b/c/h", u.resolve("g/../h").toString());
+        assertEquals("http://a/b/c/g;x=1/y", u.resolve("g;x=1/./y").toString());
+        assertEquals("http://a/b/c/y", u.resolve("g;x=1/../y").toString());
+
+        assertEquals("http://a/b/c/g?y/./x", u.resolve("g?y/./x").toString());
+        assertEquals("http://a/b/c/g?y/../x", u.resolve("g?y/../x").toString());
+        assertEquals("http://a/b/c/g#s/./x", u.resolve("g#s/./x").toString());
+        assertEquals("http://a/b/c/g#s/../x", u.resolve("g#s/../x").toString());
+
+        assertEquals("http:g", u.resolve("http:g").toString());
+        assertEquals("http://b/c?d#e", u.resolve("//b/c?d#e").toString());
     }
 
     @Test
@@ -133,8 +191,9 @@ public class UriTest {
         u = Uri.newBuilder()
                 .path("foo/")
                 .appendPathSegment("bar")
+                .appendPathSegment("")
                 .build();
-        assertEquals("foo/bar", u.toString());
+        assertEquals("foo/bar/", u.toString());
 
         // Append path segment to empty builder
         u = Uri.newBuilder()
@@ -244,7 +303,10 @@ public class UriTest {
                 "query already appended to");
 
         b.host("host").path("rootless");
-        assertIAE(b::build, "Rootless path with authority present");
+        assertIAE(b::build, "Path is rootless when authority is present");
+
+        b.host(null).path("//a");
+        assertIAE(b::build, "Path begins with // when authority is not present");
     }
 
     private static void assertIAE(Executable e) {

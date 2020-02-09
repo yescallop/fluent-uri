@@ -11,7 +11,7 @@ import static cn.yescallop.uriutils.CharUtils.*;
  *
  * @author Scallop Ye
  */
-class UriBuilderImpl implements Uri.Builder {
+final class UriBuilderImpl implements Uri.Builder {
 
     String scheme;
     String userInfo;
@@ -117,6 +117,8 @@ class UriBuilderImpl implements Uri.Builder {
             pathBuilder.append(path);
             if (!path.isEmpty() && path.charAt(len - 1) != '/')
                 pathBuilder.append('/');
+        } else if (pathBuilder.charAt(pathBuilder.length() - 1) != '/') {
+            pathBuilder.append('/');
         }
         pathBuilder.append(segment);
         return this;

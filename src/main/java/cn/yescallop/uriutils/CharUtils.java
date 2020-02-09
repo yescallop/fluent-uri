@@ -212,28 +212,37 @@ public final class CharUtils {
 
     static String decode(String s, boolean decodePlusAsSpace, boolean allowEncodedSlash) {
         int n = s.length();
-        if (n == 0)
-            return s;
-        if (s.indexOf('%') < 0) {
-            if (decodePlusAsSpace) // just do simple replace
-                return s.replace('+', ' ');
-            else return s;
-        }
+        if (n == 0) return s;
 
-        ByteBuffer bb = ByteBuffer.allocate(n);
-        CharBuffer cb = CharBuffer.allocate(n);
-        CharsetDecoder dec = DECODER.get();
+        ByteBuffer bb = null;
+        CharBuffer cb = null;
+        CharsetDecoder dec = null;
 
         char c = s.charAt(0);
 
         for (int i = 0; i < n; ) {
             if (c != '%') {
-                if (decodePlusAsSpace && c == '+') c = ' ';
-                cb.put(c);
+                if (decodePlusAsSpace && c == '+') {
+                    c = ' ';
+                    if (cb == null) {
+                        cb = CharBuffer.allocate(n);
+                        cb.put(s, 0, i);
+                    }
+                }
+                if (cb != null)
+                    cb.put(c);
                 if (++i >= n)
                     break;
                 c = s.charAt(i);
                 continue;
+            }
+            if (bb == null) {
+                bb = ByteBuffer.allocate(n);
+                dec = DECODER.get();
+            }
+            if (cb == null) {
+                cb = CharBuffer.allocate(n);
+                cb.put(s, 0, i);
             }
             bb.clear();
             while (true) {
@@ -253,7 +262,7 @@ public final class CharUtils {
             dec.flush(cb);
         }
 
-        return cb.flip().toString();
+        return cb == null ? s : cb.flip().toString();
     }
 
     // -- Scanning and checking --

@@ -11,7 +11,7 @@ import static cn.yescallop.uriutils.CharUtils.*;
  *
  * @author Scallop Ye
  */
-class UriImpl implements Uri {
+final class UriImpl implements Uri {
 
     private String string;
 
@@ -28,15 +28,23 @@ class UriImpl implements Uri {
     private String path;
     private String fragment;
 
+    private UriImpl() {
+        // private access
+    }
+
     UriImpl(UriBuilderImpl b) {
         encodedPath = b.pathBuilder != null ?
                 b.pathBuilder.toString() : b.path;
+        if (b.host == null && encodedPath.startsWith("//"))
+            // When authority is not present, the path cannot
+            // begin with two slash characters ("//") (Section 3).
+            throw new IllegalArgumentException("Path begins with // when authority is not present");
         if (!encodedPath.isEmpty()
                 && encodedPath.charAt(0) != '/') { // path-rootless
             // When authority is present, the path must
             // either be empty or begin with a slash ("/") character (Section 3).
             if (b.host != null)
-                throw new IllegalArgumentException("Rootless path with authority present");
+                throw new IllegalArgumentException("Path is rootless when authority is present");
 
             // When scheme is not present, a rootless path
             // must not contain any colon in its first segment,
@@ -165,13 +173,20 @@ class UriImpl implements Uri {
             encoded = true;
         }
         int len = path.length();
+        if (len == 0)
+            return new ArrayList<>(0);
         int p = 0;
+        int i = 0;
+        if (path.charAt(0) == '/') {
+            p = 1;
+            i = 1;
+        }
         List<String> res = new ArrayList<>();
-        for (int i = 0; i <= len; i++) {
+        for (; i <= len; i++) {
             if (i == len || path.charAt(i) == '/') {
                 String seg = path.substring(p, i);
                 if (encoded) seg = decode(seg);
-                if (p != i) res.add(seg);
+                res.add(seg);
                 p = i + 1;
             }
         }
@@ -240,26 +255,19 @@ class UriImpl implements Uri {
 
     @Override
     public Uri resolve(Uri uri) {
-        // TODO
-        return null;
+        if (!(uri instanceof UriImpl))
+            throw new IllegalArgumentException();
+        return resolve(this, (UriImpl) uri);
     }
 
     @Override
-    public Uri relativize(Uri uri) {
-        // TODO
-        return null;
+    public Uri resolve(String uriStr) throws UriSyntaxException {
+        return resolve(this, new UriImpl(uriStr));
     }
 
     @Override
-    public boolean relative() {
+    public boolean isRelative() {
         return scheme == null;
-    }
-
-    @Override
-    public boolean opaque() {
-        return scheme != null &&
-                encodedHost == null &&
-                (encodedPath.isEmpty() || encodedPath.charAt(0) != '/');
     }
 
     @Override
@@ -277,7 +285,7 @@ class UriImpl implements Uri {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Uri)) return false;
+        if (!(o instanceof UriImpl)) return false;
         return toString().equals(o.toString());
     }
 
@@ -286,7 +294,7 @@ class UriImpl implements Uri {
         return toString().hashCode();
     }
 
-    private boolean isLegalNoSchemePath(String s) {
+    private static boolean isLegalNoSchemePath(String s) {
         int len = s.length();
         for (int i = 0; i < len; i++) {
             char c = s.charAt(i);
@@ -296,6 +304,79 @@ class UriImpl implements Uri {
                 return true;
         }
         return true;
+    }
+
+    private static Uri resolve(UriImpl base, UriImpl ref) {
+        if (base.isRelative())
+            throw new UnsupportedOperationException("Resolving against relative URI");
+        UriImpl t = new UriImpl();
+
+        if (ref.scheme != null) {
+            t.scheme = ref.scheme;
+            t.encodedUserInfo = ref.encodedUserInfo;
+            t.encodedHost = ref.encodedHost;
+            t.port = ref.port;
+            t.encodedPath = normalizePath(ref.encodedPath);
+            t.encodedQuery = ref.encodedQuery;
+        } else {
+            if (ref.encodedHost != null) {
+                t.encodedUserInfo = ref.encodedUserInfo;
+                t.encodedHost = ref.encodedHost;
+                t.port = ref.port;
+                t.encodedPath = normalizePath(ref.encodedPath);
+                t.encodedQuery = ref.encodedQuery;
+            } else {
+                if (ref.encodedPath.isEmpty()) {
+                    t.encodedPath = base.encodedPath;
+                    if (ref.encodedQuery != null) {
+                        t.encodedQuery = ref.encodedQuery;
+                    } else {
+                        t.encodedQuery = base.encodedQuery;
+                    }
+                } else {
+                    if (ref.encodedPath.charAt(0) == '/') {
+                        t.encodedPath = normalizePath(ref.encodedPath);
+                    } else if (base.encodedHost != null && base.encodedPath.isEmpty()) {
+                        t.encodedPath = '/' + ref.encodedPath;
+                    } else {
+                        t.encodedPath = mergePaths(base.encodedPath, ref.encodedPath);
+                        t.encodedPath = normalizePath(t.encodedPath);
+                    }
+                    t.encodedQuery = ref.encodedQuery;
+                }
+                t.encodedUserInfo = base.encodedUserInfo;
+                t.encodedHost = base.encodedHost;
+                t.port = base.port;
+            }
+            t.scheme = base.scheme;
+        }
+        t.encodedFragment = ref.encodedFragment;
+        return t;
+    }
+
+    private static String mergePaths(String base, String ref) {
+        int len = base.length();
+        if (len == 0) return ref;
+
+        if (base.charAt(len - 1) == '/')
+            return base + ref;
+        int i = len - 2;
+        while (i >= 0) {
+            if (base.charAt(i) == '/') {
+                i++;
+                StringBuilder sb = new StringBuilder(i + ref.length());
+                sb.append(base, 0, i);
+                sb.append(ref);
+                return sb.toString();
+            }
+            i--;
+        }
+        return ref;
+    }
+
+    private static String normalizePath(String path) {
+        // TODO
+        return path;
     }
 
     private void buildString() {
