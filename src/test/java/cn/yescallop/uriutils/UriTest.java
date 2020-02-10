@@ -1,6 +1,5 @@
 package cn.yescallop.uriutils;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -97,15 +96,18 @@ public class UriTest {
         assertTrue(segments.get(2).isEmpty());
 
         // IPv6 host
+        u = Uri.from("//[::1]");
+        assertEquals("[::1]", u.encodedHost());
+        assertEquals("::1", u.host());
+
         u = Uri.from("//[fe80::ebad:9145:fe66:55cc%25a%2Bb]:80");
         assertEquals("fe80::ebad:9145:fe66:55cc%a+b", u.host());
         assertEquals(80, u.port());
     }
 
     @Test
-    @Disabled("TODO")
     public void testResolve() throws UriSyntaxException {
-        Uri u = Uri.from("http://a/b/c/d;p?q");
+        Uri u = Uri.from("http://a/b/c/d;p?q#r");
         assertEquals("g:h", u.resolve("g:h").toString());
         assertEquals("http://a/b/c/g", u.resolve("g").toString());
         assertEquals("http://a/b/c/g", u.resolve("./g").toString());
@@ -114,6 +116,7 @@ public class UriTest {
         assertEquals("http://g", u.resolve("//g").toString());
         assertEquals("http://a/b/c/d;p?y", u.resolve("?y").toString());
         assertEquals("http://a/b/c/g?y", u.resolve("g?y").toString());
+        assertEquals("http://a/b/c/d;p?q", u.resolve("").toString());
         assertEquals("http://a/b/c/d;p?q#s", u.resolve("#s").toString());
         assertEquals("http://a/b/c/g#s", u.resolve("g#s").toString());
         assertEquals("http://a/b/c/g?y#s", u.resolve("g?y#s").toString());
@@ -154,6 +157,21 @@ public class UriTest {
 
         assertEquals("http:g", u.resolve("http:g").toString());
         assertEquals("http://b/c?d#e", u.resolve("//b/c?d#e").toString());
+
+        assertEquals("http://a/b", Uri.from("http://a").resolve(Uri.from("b")).toString());
+        assertEquals("http://a/b/c", Uri.from("http://a/b/").resolve("c").toString());
+        assertEquals("http:h", Uri.from("http:g").resolve("h").toString());
+
+        assertThrows(UnsupportedOperationException.class,
+                () -> Uri.from("relative").resolve(""),
+                "Resolving against relative URI");
+
+        // Relative examples
+        assertEquals("", UriImpl.normalizePath(""));
+        assertEquals(".", UriImpl.normalizePath("."));
+        assertEquals("..", UriImpl.normalizePath(".."));
+        assertEquals(".", UriImpl.normalizePath("a/b/../../"));
+        assertEquals("b/c/", UriImpl.normalizePath("a/./../b/./c/d/.."));
     }
 
     @Test

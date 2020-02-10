@@ -2,6 +2,7 @@ package cn.yescallop.uriutils;
 
 import java.net.IDN;
 import java.net.URI;
+import java.nio.CharBuffer;
 import java.util.*;
 
 import static cn.yescallop.uriutils.CharUtils.*;
@@ -339,8 +340,8 @@ final class UriImpl implements Uri {
                     } else if (base.encodedHost != null && base.encodedPath.isEmpty()) {
                         t.encodedPath = '/' + ref.encodedPath;
                     } else {
-                        t.encodedPath = mergePaths(base.encodedPath, ref.encodedPath);
-                        t.encodedPath = normalizePath(t.encodedPath);
+                        t.encodedPath = normalizePath(
+                                mergePaths(base.encodedPath, ref.encodedPath));
                     }
                     t.encodedQuery = ref.encodedQuery;
                 }
@@ -374,9 +375,72 @@ final class UriImpl implements Uri {
         return ref;
     }
 
-    private static String normalizePath(String path) {
-        // TODO
-        return path;
+    static String normalizePath(String path) {
+        int len = path.length();
+        if (len == 0) return path;
+        CharBuffer cb = CharBuffer.allocate(len);
+
+        int segStart = 0;
+        int dotCnt = 0;
+        boolean absolute = path.charAt(0) == '/';
+        int limit = 0;
+
+        int i = absolute ? 1 : 0;
+        for (; i <= len; i++) {
+            char c;
+            boolean end = i == len;
+            if (end || (c = path.charAt(i)) == '/') {
+                int ss = segStart;
+                int dc = dotCnt;
+                segStart = i;
+                dotCnt = 0;
+                int pos = cb.position();
+                if (dc == 1) {
+                    if (end && (absolute || pos != 0))
+                        cb.put('/');
+                    continue;
+                }
+                if (dc == 2) {
+                    if (absolute || pos != limit) {
+                        pos = rewind(cb, limit);
+                        if (end && (absolute || pos != 0))
+                            cb.put('/');
+                        continue;
+                    }
+                    limit = pos + i - ss;
+                }
+                // append segment
+                cb.put(path, ss, i);
+            } else if (c == '.') {
+                if (dotCnt != -1) dotCnt++;
+            } else {
+                dotCnt = -1;
+            }
+        }
+        cb.flip();
+        len = cb.length();
+        // skip the leading "/" if path is relative
+        if (len != 0 && !absolute && cb.get(0) == '/') {
+            cb.position(1);
+            len--;
+        }
+        // if path is not empty and len is zero,
+        // the result should be "."
+        if (len == 0) return ".";
+        return cb.toString();
+    }
+
+    private static int rewind(CharBuffer cb, int limit) {
+        int pos = cb.position();
+        if (pos == 0) return 0;
+        int i = pos - 1;
+        while (i > limit) {
+            if (cb.get(i) == '/')
+                break;
+            i--;
+        }
+        cb.position(i);
+        return i;
     }
 
     private void buildString() {
