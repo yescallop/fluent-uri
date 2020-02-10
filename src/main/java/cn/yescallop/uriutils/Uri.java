@@ -131,10 +131,29 @@ public interface Uri {
      */
     String encodedFragment();
 
+    /**
+     * Normalizes the path of this Uri.
+     *
+     * @return this Uri if the path needs no normalization,
+     * or a new Uri with normalized path.
+     */
     Uri normalize();
 
+    /**
+     * Resolves the given Uri against this Uri.
+     *
+     * @param uri a Uri
+     * @return the target URI
+     */
     Uri resolve(Uri uri);
 
+    /**
+     * Resolves the given URI-reference string against this Uri.
+     *
+     * @param uriStr a URI-reference
+     * @return the target URI
+     * @throws UriSyntaxException if the input string violates RFC 3986.
+     */
     Uri resolve(String uriStr) throws UriSyntaxException;
 
     /**

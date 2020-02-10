@@ -250,8 +250,19 @@ final class UriImpl implements Uri {
 
     @Override
     public Uri normalize() {
-        // TODO
-        return null;
+        String normalizedPath = normalizePath(encodedPath);
+        // If normalized, the length of path would be less.
+        if (normalizedPath.length() == encodedPath.length())
+            return this;
+        UriImpl r = new UriImpl();
+        r.scheme = scheme;
+        r.encodedUserInfo = encodedUserInfo;
+        r.encodedHost = encodedHost;
+        r.port = port;
+        r.encodedPath = normalizedPath;
+        r.encodedQuery = encodedQuery;
+        r.encodedFragment = encodedFragment;
+        return r;
     }
 
     @Override
@@ -375,7 +386,7 @@ final class UriImpl implements Uri {
         return ref;
     }
 
-    static String normalizePath(String path) {
+    private static String normalizePath(String path) {
         int len = path.length();
         if (len == 0) return path;
         CharBuffer cb = CharBuffer.allocate(len);

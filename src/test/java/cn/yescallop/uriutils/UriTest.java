@@ -165,13 +165,17 @@ public class UriTest {
         assertThrows(UnsupportedOperationException.class,
                 () -> Uri.from("relative").resolve(""),
                 "Resolving against relative URI");
+    }
 
-        // Relative examples
-        assertEquals("", UriImpl.normalizePath(""));
-        assertEquals(".", UriImpl.normalizePath("."));
-        assertEquals("..", UriImpl.normalizePath(".."));
-        assertEquals(".", UriImpl.normalizePath("a/b/../../"));
-        assertEquals("b/c/", UriImpl.normalizePath("a/./../b/./c/d/.."));
+    @Test
+    public void testNormalize() throws UriSyntaxException {
+        Uri u;
+        assertSame(u = Uri.from(""), u.normalize());
+        assertSame(u = Uri.from("."), u.normalize());
+        assertSame(u = Uri.from(".."), u.normalize());
+        assertEquals(".", Uri.from("a/b/../../").normalize().toString());
+        assertEquals("b/c/", Uri.from("a/./../b/./c/d/..").normalize().toString());
+        assertEquals("http://a/b/d", Uri.from("http://a/b/c/../d").normalize().toString());
     }
 
     @Test
