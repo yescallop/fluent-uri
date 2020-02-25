@@ -15,38 +15,38 @@ public class CharUtilsTest {
 
     @Test
     public void testConstants() {
-        assertEquals(L_DIGIT, lowMask('0', '9'));
-        assertEquals(H_DIGIT, highMask('0', '9'));
+        assertEquals(lowMask('0', '9'), L_DIGIT);
+        assertEquals(highMask('0', '9'), H_DIGIT);
 
-        assertEquals(L_ALPHA, lowMask('A', 'Z') | lowMask('a', 'z'));
-        assertEquals(H_ALPHA, highMask('A', 'Z') | highMask('a', 'z'));
+        assertEquals(lowMask('A', 'Z') | lowMask('a', 'z'), L_ALPHA);
+        assertEquals(highMask('A', 'Z') | highMask('a', 'z'), H_ALPHA);
 
-        assertEquals(L_HEXDIG, L_DIGIT | lowMask('A', 'F') | lowMask('a', 'f'));
-        assertEquals(H_HEXDIG, H_DIGIT | highMask('A', 'F') | highMask('a', 'f'));
+        assertEquals(L_DIGIT | lowMask('A', 'F') | lowMask('a', 'f'), L_HEXDIG);
+        assertEquals(H_DIGIT | highMask('A', 'F') | highMask('a', 'f'), H_HEXDIG);
 
-        assertEquals(L_SUB_DELIMS, lowMask("!$&'()*+,;="));
-        assertEquals(H_SUB_DELIMS, highMask("!$&'()*+,;="));
+        assertEquals(lowMask("!$&'()*+,;="), L_SUB_DELIMS);
+        assertEquals(highMask("!$&'()*+,;="), H_SUB_DELIMS);
 
-        assertEquals(L_UNRESERVED, L_ALPHA | L_DIGIT | lowMask("-._~"));
-        assertEquals(H_UNRESERVED, H_ALPHA | H_DIGIT | highMask("-._~"));
+        assertEquals(L_ALPHA | L_DIGIT | lowMask("-._~"), L_UNRESERVED);
+        assertEquals(H_ALPHA | H_DIGIT | highMask("-._~"), H_UNRESERVED);
 
-        assertEquals(L_PCHAR, L_UNRESERVED | L_PCT_ENCODED | L_SUB_DELIMS | lowMask(":@"));
-        assertEquals(H_PCHAR, H_UNRESERVED | H_PCT_ENCODED | L_SUB_DELIMS | highMask(":@"));
+        assertEquals(L_UNRESERVED | L_PCT_ENCODED | L_SUB_DELIMS | lowMask(":@"), L_PCHAR);
+        assertEquals(H_UNRESERVED | H_PCT_ENCODED | L_SUB_DELIMS | highMask(":@"), H_PCHAR);
 
-        assertEquals(L_SCHEME, L_ALPHA | L_DIGIT | lowMask("+-."));
-        assertEquals(H_SCHEME, H_ALPHA | H_DIGIT | highMask("+-."));
+        assertEquals(L_ALPHA | L_DIGIT | lowMask("+-."), L_SCHEME);
+        assertEquals(H_ALPHA | H_DIGIT | highMask("+-."), H_SCHEME);
 
-        assertEquals(L_USERINFO, L_UNRESERVED | L_PCT_ENCODED | L_SUB_DELIMS | lowMask(":"));
-        assertEquals(H_USERINFO, H_UNRESERVED | H_PCT_ENCODED | H_SUB_DELIMS | highMask(":"));
+        assertEquals(L_UNRESERVED | L_PCT_ENCODED | L_SUB_DELIMS | lowMask(":"), L_USERINFO);
+        assertEquals(H_UNRESERVED | H_PCT_ENCODED | H_SUB_DELIMS | highMask(":"), H_USERINFO);
 
-        assertEquals(L_PATH, L_PCHAR | lowMask("/"));
-        assertEquals(H_PATH, H_PCHAR | highMask("/"));
+        assertEquals(L_PCHAR | lowMask("/"), L_PATH);
+        assertEquals(H_PCHAR | highMask("/"), H_PATH);
 
-        assertEquals(L_QUERY_FRAGMENT, L_PCHAR | lowMask("/?"));
-        assertEquals(H_QUERY_FRAGMENT, H_PCHAR | highMask("/?"));
+        assertEquals(L_PCHAR | lowMask("/?"), L_QUERY_FRAGMENT);
+        assertEquals(H_PCHAR | highMask("/?"), H_QUERY_FRAGMENT);
 
-        assertEquals(L_QUERY_PARAM, L_QUERY_FRAGMENT ^ lowMask("&+="));
-        assertEquals(H_QUERY_PARAM, H_QUERY_FRAGMENT ^ highMask("&+="));
+        assertEquals(L_QUERY_FRAGMENT ^ lowMask("&+="), L_QUERY_PARAM);
+        assertEquals(H_QUERY_FRAGMENT ^ highMask("&+="), H_QUERY_PARAM);
     }
 
     @Test
@@ -106,7 +106,8 @@ public class CharUtilsTest {
         String[] illegals = new String[]{
                 ":0", "0:", ":::", "::cd::", "0:a:b:c:d:e:f:g", "0:a:b:c:d:e:f:0:0",
                 "a:b::255.255.255.256", "a:b:c:d:e:f::1.1.1.1",
-                "a:b::1.2.3.a", "a:b::01.2.3.4", "aaaaa::"
+                "a:b::1.2.3.a", "a:b::01.2.3.4", "aaaaa::",
+                "::111.111.111", "::1.1.1.1.1", "::1.1.1"
         };
         String[] legalZoneIds = new String[]{
                 "0", "1", "en1", "eth0", "0a-.~_%20"
@@ -153,7 +154,7 @@ public class CharUtilsTest {
                 "Expected %25 at index 2: ::%0");
     }
 
-    // Computes the low-order mask for the characters in the given string
+    // Computes the low-order mask for the characters in the given string.
     private static long lowMask(String chars) {
         int n = chars.length();
         long m = 0;
@@ -165,7 +166,7 @@ public class CharUtilsTest {
         return m;
     }
 
-    // Computes the high-order mask for the characters in the given string
+    // Computes the high-order mask for the characters in the given string.
     private static long highMask(String chars) {
         int n = chars.length();
         long m = 0;
@@ -178,7 +179,7 @@ public class CharUtilsTest {
     }
 
     // Computes a low-order mask for the characters
-    // between first and last, inclusive
+    // between first and last, inclusive.
     private static long lowMask(char first, char last) {
         long m = 0;
         int f = Math.max(Math.min(first, 63), 0);
@@ -190,7 +191,7 @@ public class CharUtilsTest {
     }
 
     // Computes a high-order mask for the characters
-    // between first and last, inclusive
+    // between first and last, inclusive.
     private static long highMask(char first, char last) {
         long m = 0;
         int f = Math.max(Math.min(first, 127), 64) - 64;

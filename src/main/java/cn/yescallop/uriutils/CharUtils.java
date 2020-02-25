@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
  * Utilities for character checking and en/decoding.
  *
  * @author Scallop Ye
+ * @see <a href="https://www.ietf.org/rfc/rfc3986.html#section-2">Section 2: Characters, RFC 3986</a>
  */
 public final class CharUtils {
 
@@ -26,7 +27,14 @@ public final class CharUtils {
         // no instance
     }
 
-    // Tells whether the given character is permitted by the given mask pair
+    /**
+     * Tells whether the given character is permitted by the given mask pair.
+     *
+     * @param c a char
+     * @param lowMask low mask
+     * @param highMask high mask
+     * @return true if the character is permitted, or else false
+     */
     public static boolean match(char c, long lowMask, long highMask) {
         if (c == 0) // 0 doesn't have a slot in the mask. So, it never matches.
             return false;
@@ -37,7 +45,7 @@ public final class CharUtils {
         return false;
     }
 
-    // Character-class masks from RFC 3986, which are tested in CharUtilsTest.
+    // Character-class masks from RFC 3986, which are tested in CharUtilsTest
 
     public static final long L_DIGIT = 0x3FF000000000000L;
     public static final long H_DIGIT = 0L;
@@ -52,7 +60,7 @@ public final class CharUtils {
 
     // sub-delims    = "!" / "$" / "&" / "'" / "(" / ")" /
     //                 "*" / "+" / "," / ";" / "="
-    public static final long L_SUB_DELIMS = 0x28001fd200000000L;
+    public static final long L_SUB_DELIMS = 0x28001FD200000000L;
     public static final long H_SUB_DELIMS = 0L;
 
     // unreserved    = ALPHA / DIGIT / "-" / "." / "_" / "~"
@@ -105,15 +113,15 @@ public final class CharUtils {
 
     // -- Escaping and encoding --
 
-    private static final char[] hexDigits = {
+    private static final char[] HEX_DIGITS = {
             '0', '1', '2', '3', '4', '5', '6', '7',
             '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
     };
 
     private static void appendEscape(StringBuilder sb, byte b) {
         sb.append('%');
-        sb.append(hexDigits[(b >> 4) & 0x0f]);
-        sb.append(hexDigits[b & 0x0f]);
+        sb.append(HEX_DIGITS[(b >> 4) & 0x0F]);
+        sb.append(HEX_DIGITS[b & 0x0F]);
     }
 
     private static void appendEncoded(StringBuilder sb, CharBuffer cb, ByteBuffer bb) {
@@ -129,12 +137,29 @@ public final class CharUtils {
         }
     }
 
+    /**
+     * Encodes any characters in a string that are not permitted
+     * by the given mask pair.
+     *
+     * @param s an input string
+     * @param lowMask low mask
+     * @param highMask high mask
+     * @return the encoded string
+     */
     public static String encode(String s, long lowMask, long highMask) {
         return encode(s, lowMask, highMask, false);
     }
 
-    // Encodes any characters in s that are not permitted
-    // by the given mask pair
+    /**
+     * Encodes any characters in a string that are not permitted
+     * by the given mask pair.
+     *
+     * @param s an input string
+     * @param lowMask low mask
+     * @param highMask high mask
+     * @param encodeSpaceAsPlus whether encoding space (" ") as plus ("+")
+     * @return the encoded string
+     */
     public static String encode(String s,
                                 long lowMask, long highMask,
                                 boolean encodeSpaceAsPlus) {
@@ -202,10 +227,23 @@ public final class CharUtils {
         return (byte) ((decode(c1) << 4) | decode(c2));
     }
 
+    /**
+     * Decodes a percent-encoded string.
+     *
+     * @param s an input string
+     * @return the decoded string
+     */
     public static String decode(String s) {
         return decode(s, false, true);
     }
 
+    /**
+     * Decodes a percent-encoded string.
+     *
+     * @param s an input string
+     * @param decodePlusAsSpace whether decoding plus ("+") as space (" ")
+     * @return the decoded string
+     */
     public static String decode(String s, boolean decodePlusAsSpace) {
         return decode(s, decodePlusAsSpace, true);
     }
@@ -295,7 +333,7 @@ public final class CharUtils {
         return false;
     }
 
-    // Scans the given char, starting at the given position
+    // Scans the given char, starting at the given position.
     private static int scan(String input, int start, int n, char ch) {
         int p = start;
         while (p < n) {
@@ -307,7 +345,7 @@ public final class CharUtils {
         return p;
     }
 
-    // Scans chars that match the given mask pair
+    // Scans chars that match the given mask pair.
     private static int scan(String input,
                             int start, int n, long lowMask, long highMask) {
         int p = start;
@@ -330,7 +368,7 @@ public final class CharUtils {
         return p;
     }
 
-    // Checks that each of the chars in [start, end) matches the given mask
+    // Checks that each of the chars in [start, end) matches the given mask.
     static void checkChars(String input, int start, int end,
                            long lowMask, long highMask, String what) {
         int p = scan(input, start, end, lowMask, highMask);
@@ -338,12 +376,13 @@ public final class CharUtils {
             fail(input, "Illegal character in " + what, p);
     }
 
+    // Checks that each of the chars in the given string matches the given mask.
     static void checkChars(String input,
                            long lowMask, long highMask, String what) {
         checkChars(input, 0, input.length(), lowMask, highMask, what);
     }
 
-    // Checks that the char at position p matches the given mask
+    // Checks that the char at position p matches the given mask.
     static void checkChar(String input, int p,
                           long lowMask, long highMask, String what) {
         if (!match(input.charAt(p), lowMask, highMask))
@@ -351,7 +390,7 @@ public final class CharUtils {
     }
 
     // Checks that the given host is a legal DNS host.
-    // References: RFC 952, 1034, 1123, 2181.
+    // References: RFC 952, 1034, 1123, 2181
     static void checkDnsHost(String host) {
         int len = host.length();
         if (len == 0)
@@ -383,8 +422,8 @@ public final class CharUtils {
         throw new IllegalArgumentException("Host syntax incompatible for DNS: " + host);
     }
 
-    // Checks that the given substring contains a legal IPv6 address
-    // See Section 3.2.2, RFC 3986; Section 2, RFC 6874.
+    // Checks that the given substring contains a legal IPv6 address.
+    // References: Section 3.2.2, RFC 3986; Section 2, RFC 6874
     static void checkIpv6Address(String s, int start, int n, boolean encoded)
             throws UriSyntaxException {
         int len = n - start;
@@ -454,6 +493,7 @@ public final class CharUtils {
             failUSE(s, "IPv6 address too long", start);
     }
 
+    // IPv4address = dec-octet "." dec-octet "." dec-octet "." dec-octet
     private static boolean isIpv4Address(String s, int start, int n) {
         int len = n - start;
         // shortest: 0.0.0.0
@@ -475,27 +515,28 @@ public final class CharUtils {
                 return false;
             }
         }
-        return isDecOctet(s, lastDot + 1, n);
+        return dotCnt == 3 && isDecOctet(s, lastDot + 1, n);
     }
 
+    // dec-octet   = DIGIT                 ; 0-9
+    //             / %x31-39 DIGIT         ; 10-99
+    //             / "1" 2DIGIT            ; 100-199
+    //             / "2" %x30-34 DIGIT     ; 200-249
+    //             / "25" %x30-35          ; 250-255
     private static boolean isDecOctet(String s, int start, int n) {
         int len = n - start;
         if (len == 0 || len > 3) return false;
+        if (len == 1) return true;
 
         char c1 = s.charAt(start);
-        if (len != 1) {
-            if (c1 == '0')
-                return false;
-            char c2 = s.charAt(start + 1);
-            if (len == 3) {
-                char c3 = s.charAt(start + 2);
-                if (c1 == '2') {
-                    if (c2 == '5') {
-                        return c3 <= '5';
-                    } else return c2 <= '5';
-                } else return c1 == '1';
-            }
-        }
-        return true;
+        if (c1 == '0') return false;
+        if (len == 2) return true;
+        char c2 = s.charAt(start + 1);
+        char c3 = s.charAt(start + 2);
+        if (c1 == '2') {
+            if (c2 == '5') {
+                return c3 <= '5';
+            } else return c2 <= '5';
+        } else return c1 == '1';
     }
 }

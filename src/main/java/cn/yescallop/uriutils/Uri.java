@@ -86,8 +86,7 @@ public interface Uri {
     /**
      * Gets the decoded path segments.
      * <p>
-     * Empty segments are omitted, e.g. "//".
-     * Segment might contain "/" decoded from "%2F".
+     * A segment might contain "/" decoded from "%2F".
      *
      * @return the path segments, each without a leading or trailing "/"
      */

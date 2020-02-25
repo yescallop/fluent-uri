@@ -34,6 +34,7 @@ final class UriImpl implements Uri {
     }
 
     UriImpl(UriBuilderImpl b) {
+        scheme = b.scheme;
         encodedPath = b.pathBuilder != null ?
                 b.pathBuilder.toString() : b.path;
         if (b.host == null && encodedPath.startsWith("//"))
@@ -47,16 +48,9 @@ final class UriImpl implements Uri {
             if (b.host != null)
                 throw new IllegalArgumentException("Path is rootless when authority is present");
 
-            // When scheme is not present, a rootless path
-            // must not contain any colon in its first segment,
-            // to bypass which a dot segment needs to precede the path (Section 4.2).
-            if (b.scheme == null // path-noscheme
-                    && !isLegalNoSchemePath(encodedPath)) {
-                encodedPath = "./" + encodedPath;
-            }
+            correctNoSchemePath();
         }
 
-        scheme = b.scheme;
         if (b.encodedHost != null) {
             encodedHost = b.encodedHost;
         } else if (b.host != null) {
@@ -262,6 +256,7 @@ final class UriImpl implements Uri {
         r.encodedPath = normalizedPath;
         r.encodedQuery = encodedQuery;
         r.encodedFragment = encodedFragment;
+        r.correctNoSchemePath();
         return r;
     }
 
@@ -304,6 +299,16 @@ final class UriImpl implements Uri {
     @Override
     public int hashCode() {
         return toString().hashCode();
+    }
+
+    private void correctNoSchemePath() {
+        // When scheme is not present, a rootless path
+        // must not contain any colon in its first segment,
+        // to bypass which a dot segment needs to precede the path (Section 4.2).
+        if (scheme == null // path-noscheme
+                && !isLegalNoSchemePath(encodedPath)) {
+            encodedPath = "./" + encodedPath;
+        }
     }
 
     private static boolean isLegalNoSchemePath(String s) {
