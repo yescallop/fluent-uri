@@ -1,4 +1,4 @@
-package cn.yescallop.uriutils;
+package cn.yescallop.fluenturi;
 
 import java.net.URI;
 import java.util.List;

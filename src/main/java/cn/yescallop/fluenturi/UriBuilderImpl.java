@@ -1,10 +1,10 @@
-package cn.yescallop.uriutils;
+package cn.yescallop.fluenturi;
 
-import cn.yescallop.uriutils.Uri.HostEncodingOption;
+import cn.yescallop.fluenturi.Uri.HostEncodingOption;
 
 import java.util.Objects;
 
-import static cn.yescallop.uriutils.CharUtils.*;
+import static cn.yescallop.fluenturi.CharUtils.*;
 
 /**
  * Implementation of {@link Uri.Builder}.

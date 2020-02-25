@@ -1,11 +1,11 @@
-package cn.yescallop.uriutils;
+package cn.yescallop.fluenturi;
 
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-import static cn.yescallop.uriutils.CharUtils.*;
+import static cn.yescallop.fluenturi.CharUtils.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**

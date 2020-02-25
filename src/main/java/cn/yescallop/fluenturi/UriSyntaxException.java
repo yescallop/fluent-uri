@@ -1,4 +1,4 @@
-package cn.yescallop.uriutils;
+package cn.yescallop.fluenturi;
 
 /**
  * Thrown if an input string could not be parsed as a

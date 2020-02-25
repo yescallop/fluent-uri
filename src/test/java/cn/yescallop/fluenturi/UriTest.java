@@ -1,4 +1,4 @@
-package cn.yescallop.uriutils;
+package cn.yescallop.fluenturi;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
@@ -176,7 +176,7 @@ public class UriTest {
         assertEquals(".", Uri.from("a/b/../../").normalize().toString());
         assertEquals("b/c/", Uri.from("a/./../b/./c/d/..").normalize().toString());
         assertEquals("http://a/b/d", Uri.from("http://a/b/c/../d").normalize().toString());
-        // When scheme is not present, leading dot segment should
+        // When scheme is not present, leading dot-segment should
         // not be omitted if colon is contained in the second segment.
         assertEquals("./:", Uri.from("./:").normalize().toString());
     }

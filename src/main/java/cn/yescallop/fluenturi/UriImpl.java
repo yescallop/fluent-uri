@@ -1,11 +1,11 @@
-package cn.yescallop.uriutils;
+package cn.yescallop.fluenturi;
 
 import java.net.IDN;
 import java.net.URI;
 import java.nio.CharBuffer;
 import java.util.*;
 
-import static cn.yescallop.uriutils.CharUtils.*;
+import static cn.yescallop.fluenturi.CharUtils.*;
 
 /**
  * Implementation of {@link Uri}.
@@ -291,7 +291,7 @@ final class UriImpl implements Uri {
     private void correctNoSchemePath() {
         // When scheme is not present, a rootless path
         // must not contain any colon in its first segment,
-        // to bypass which a dot segment needs to precede the path (Section 4.2).
+        // to bypass which a dot-segment needs to precede the path (Section 4.2).
         if (scheme == null // path-noscheme
                 && !isLegalNoSchemePath(encodedPath)) {
             encodedPath = "./" + encodedPath;

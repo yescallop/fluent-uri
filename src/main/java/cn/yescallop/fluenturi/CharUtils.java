@@ -1,4 +1,4 @@
-package cn.yescallop.uriutils;
+package cn.yescallop.fluenturi;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -27,15 +27,7 @@ public final class CharUtils {
         // no instance
     }
 
-    /**
-     * Tells whether the given character is permitted by the given mask pair.
-     *
-     * @param c a char
-     * @param lowMask low mask
-     * @param highMask high mask
-     * @return true if the character is permitted, or else false
-     */
-    public static boolean match(char c, long lowMask, long highMask) {
+    private static boolean match(char c, long lowMask, long highMask) {
         if (c == 0) // 0 doesn't have a slot in the mask. So, it never matches.
             return false;
         if (c < 64)
@@ -377,6 +369,7 @@ public final class CharUtils {
 
     // Checks that the given host is a legal DNS host.
     // References: RFC 952, 1034, 1123, 2181
+    // TODO: Correct the syntax
     static void checkDnsHost(String host) {
         int len = host.length();
         if (len == 0)
