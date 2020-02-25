@@ -83,7 +83,7 @@ public class UriTest {
 
         // Containing encoded slash "%2F" in the path
         u = Uri.from("%2F");
-        assertNull(u.path());
+        assertEquals("/", u.path());
         segments = u.pathSegments();
         assertEquals(1, segments.size());
         assertEquals("/", segments.get(0));
@@ -331,7 +331,7 @@ public class UriTest {
         assertIAE(b::build, "Path is rootless when authority is present");
 
         b.host(null).path("//a");
-        assertIAE(b::build, "Path begins with // when authority is not present");
+        assertIAE(b::build, "Path begins with '//' when authority is not present");
     }
 
     private static void assertIAE(Executable e) {

@@ -78,8 +78,10 @@ public interface Uri {
 
     /**
      * Gets the decoded path.
+     * <p>
+     * An encoded slash "%2F" would be decoded as "/".
      *
-     * @return the path, or null if an encoded slash "%2F" is found
+     * @return the path
      */
     String path();
 

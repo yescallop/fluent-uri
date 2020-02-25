@@ -234,7 +234,7 @@ public final class CharUtils {
      * @return the decoded string
      */
     public static String decode(String s) {
-        return decode(s, false, true);
+        return decode(s, false);
     }
 
     /**
@@ -245,10 +245,6 @@ public final class CharUtils {
      * @return the decoded string
      */
     public static String decode(String s, boolean decodePlusAsSpace) {
-        return decode(s, decodePlusAsSpace, true);
-    }
-
-    static String decode(String s, boolean decodePlusAsSpace, boolean allowEncodedSlash) {
         int n = s.length();
         if (n == 0) return s;
 
@@ -285,8 +281,6 @@ public final class CharUtils {
             bb.clear();
             while (true) {
                 byte b = decode(s.charAt(++i), s.charAt(++i));
-                if (!allowEncodedSlash && b == 0x2F)
-                    return null;
                 bb.put(b);
                 if (++i >= n)
                     break;
@@ -527,7 +521,7 @@ public final class CharUtils {
         if (c1 == '2') {
             if (c2 == '5') {
                 return c3 <= '5';
-            } else return c2 <= '5';
+            } else return c2 < '5';
         } else return c1 == '1';
     }
 }

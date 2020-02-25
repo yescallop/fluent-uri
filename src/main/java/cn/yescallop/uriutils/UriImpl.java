@@ -40,7 +40,7 @@ final class UriImpl implements Uri {
         if (b.host == null && encodedPath.startsWith("//"))
             // When authority is not present, the path cannot
             // begin with two slash characters ("//") (Section 3).
-            throw new IllegalArgumentException("Path begins with // when authority is not present");
+            throw new IllegalArgumentException("Path begins with '//' when authority is not present");
         if (!encodedPath.isEmpty()
                 && encodedPath.charAt(0) != '/') { // path-rootless
             // When authority is present, the path must
@@ -149,35 +149,26 @@ final class UriImpl implements Uri {
     @Override
     public String path() {
         if (path == null)
-            path = decode(encodedPath, false, false);
+            path = decode(encodedPath);
         return path;
     }
 
     @Override
     public List<String> pathSegments() {
-        String path = path();
-        boolean encoded;
-        if (path != null) {
-            encoded = false;
-        } else {
-            path = encodedPath;
-            encoded = true;
-        }
-        int len = path.length();
+        int len = encodedPath.length();
         if (len == 0)
             return new ArrayList<>(0);
         int p = 0;
         int i = 0;
-        if (path.charAt(0) == '/') {
+        if (encodedPath.charAt(0) == '/') {
             p = 1;
             i = 1;
         }
         List<String> res = new ArrayList<>();
         for (; i <= len; i++) {
-            if (i == len || path.charAt(i) == '/') {
-                String seg = path.substring(p, i);
-                if (encoded) seg = decode(seg);
-                res.add(seg);
+            if (i == len || encodedPath.charAt(i) == '/') {
+                String seg = encodedPath.substring(p, i);
+                res.add(decode(seg));
                 p = i + 1;
             }
         }
