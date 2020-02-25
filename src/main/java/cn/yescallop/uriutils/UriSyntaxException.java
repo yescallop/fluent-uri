@@ -6,7 +6,7 @@ package cn.yescallop.uriutils;
  *
  * @author Scallop Ye
  */
-public class UriSyntaxException extends Exception {
+public class UriSyntaxException extends IllegalArgumentException {
 
     private final String input;
     private final String reason;

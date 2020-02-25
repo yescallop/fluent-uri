@@ -305,16 +305,8 @@ public final class CharUtils {
 
     // -- Scanning and checking --
 
-    private static void fail(String input, String reason, int p) {
-        throw new IllegalArgumentException(new UriSyntaxException(input, reason, p));
-    }
-
-    private static void failUSE(String input, String reason, int p) throws UriSyntaxException {
+    static void fail(String input, String reason, int p) {
         throw new UriSyntaxException(input, reason, p);
-    }
-
-    private static void failUSEExpecting(String input, String expected, int p) throws UriSyntaxException {
-        throw new UriSyntaxException(input, "Expected " + expected, p);
     }
 
     // Scans a potential escape sequence, starting at the given position,
@@ -334,7 +326,7 @@ public final class CharUtils {
     }
 
     // Scans the given char, starting at the given position.
-    private static int scan(String input, int start, int n, char ch) {
+    static int scan(String input, int start, int n, char ch) {
         int p = start;
         while (p < n) {
             char cur = input.charAt(p);
@@ -424,10 +416,9 @@ public final class CharUtils {
 
     // Checks that the given substring contains a legal IPv6 address.
     // References: Section 3.2.2, RFC 3986; Section 2, RFC 6874
-    static void checkIpv6Address(String s, int start, int n, boolean encoded)
-            throws UriSyntaxException {
+    static void checkIpv6Address(String s, int start, int n, boolean encoded) {
         int len = n - start;
-        if (len < 2) failUSEExpecting(s, "IPv6 address", start);
+        if (len < 2) fail(s, "Illegal IPv6 address", start);
 
         int p = scan(s, start, n, '%');
         if (p != n) {
@@ -436,21 +427,21 @@ public final class CharUtils {
                 if (p + 2 >= n
                         || s.charAt(p + 1) != '2'
                         || s.charAt(p + 2) != '5') {
-                    failUSEExpecting(s, "%25", p);
+                    fail(s, "Expected %25", p);
                 }
                 z = p + 3;
                 if (scan(s, z, n, L_ZONE_ID, H_ZONE_ID) < n)
-                    failUSE(s, "Illegal character in zone ID", z);
+                    fail(s, "Illegal character in zone ID", z);
             } else z = p + 1;
             if (z == n)
-                failUSEExpecting(s, "zone ID", z);
+                fail(s, "Expected zone ID", z);
 
             n = p;
         }
 
         len = n - start;
         // longest: 0000:0000:0000:0000:0000:0000:255.255.255.255
-        if (len < 2 || len > 45) failUSEExpecting(s, "IPv6 address", start);
+        if (len < 2 || len > 45) fail(s, "Illegal IPv6 address", start);
 
         int minSeqCount = 0;
         int lastColon = start - 1;
@@ -462,35 +453,35 @@ public final class CharUtils {
                 if (lastColon != n - 1) {
                     minSeqCount++;
                 } else if (!compressed) { // ending with single colon
-                    failUSE(s, "Malformed IPv6 address", start);
+                    fail(s, "Malformed IPv6 address", start);
                 }
             } else if ((c = s.charAt(i)) == ':') {
                 if (i == lastColon + 1) {
                     if (compressed)
-                        failUSE(s, "Multiple compressions in IPv6 address", lastColon);
+                        fail(s, "Multiple compressions in IPv6 address", lastColon);
                     if (i == start) {
                         if (s.charAt(++i) != ':')
-                            failUSE(s, "Malformed IPv6 address", start);
+                            fail(s, "Malformed IPv6 address", start);
                     }
                     compressed = true;
                 } else {
                     // hex seq len > 4
                     if (i - lastColon > 5)
-                        failUSE(s, "Hex sequence too long", lastColon + 1);
+                        fail(s, "Hex sequence too long", lastColon + 1);
                 }
                 minSeqCount++;
                 lastColon = i;
             } else if (c == '.') {
                 if (!isIpv4Address(s, lastColon + 1, n))
-                    failUSEExpecting(s, "IPv4 address", lastColon + 1);
+                    fail(s, "Illegal IPv4 address", lastColon + 1);
                 minSeqCount += 2;
                 break;
             } else if (!match(c, L_HEXDIG, H_HEXDIG)) {
-                failUSE(s, "Illegal character in IPv6 address", i);
+                fail(s, "Illegal character in IPv6 address", i);
             }
         }
         if (minSeqCount > 8)
-            failUSE(s, "IPv6 address too long", start);
+            fail(s, "IPv6 address too long", start);
     }
 
     // IPv4address = dec-octet "." dec-octet "." dec-octet "." dec-octet

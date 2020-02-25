@@ -76,11 +76,7 @@ final class UriBuilderImpl implements Uri.Builder {
             int len = encodedHost.length();
             if (len >= 2 && encodedHost.charAt(0) == '['
                     && encodedHost.charAt(len - 1) == ']') {
-                try {
-                    checkIpv6Address(encodedHost, 1, len - 1, true);
-                } catch (UriSyntaxException e) {
-                    throw new IllegalArgumentException(e);
-                }
+                checkIpv6Address(encodedHost, 1, len - 1, true);
             } else {
                 checkChars(encodedHost, L_REG_NAME, H_REG_NAME, "host");
             }

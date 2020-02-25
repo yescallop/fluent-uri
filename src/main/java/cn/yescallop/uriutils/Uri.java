@@ -18,7 +18,7 @@ public interface Uri {
      * @param str an RFC 3986-compliant, encoded URI-reference, as defined in Section 4.1
      * @throws UriSyntaxException if the input string violates RFC 3986.
      */
-    static Uri from(String str) throws UriSyntaxException {
+    static Uri from(String str) {
         return new UriImpl(str);
     }
 
@@ -153,7 +153,7 @@ public interface Uri {
      * @return the target URI
      * @throws UriSyntaxException if the input string violates RFC 3986.
      */
-    Uri resolve(String uriStr) throws UriSyntaxException;
+    Uri resolve(String uriStr);
 
     /**
      * Tells whether this Uri is relative, that is,

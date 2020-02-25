@@ -18,7 +18,7 @@ public class UriTest {
             "?k%201=v%261&%E9%94%AE=v%3D2#?%23";
 
     @Test
-    public void testParse() throws UriSyntaxException {
+    public void testParse() {
         Uri u = Uri.from(ALL);
         assertEquals("http", u.scheme());
         assertEquals("us%20er:in%40fo", u.encodedUserInfo());
@@ -106,7 +106,7 @@ public class UriTest {
     }
 
     @Test
-    public void testResolve() throws UriSyntaxException {
+    public void testResolve() {
         Uri u = Uri.from("http://a/b/c/d;p?q#r");
         assertEquals("g:h", u.resolve("g:h").toString());
         assertEquals("http://a/b/c/g", u.resolve("g").toString());
@@ -168,7 +168,7 @@ public class UriTest {
     }
 
     @Test
-    public void testNormalize() throws UriSyntaxException {
+    public void testNormalize() {
         Uri u;
         assertSame(u = Uri.from(""), u.normalize());
         assertSame(u = Uri.from("."), u.normalize());
@@ -268,23 +268,23 @@ public class UriTest {
 
     @Test
     public void testParsingExceptions() {
-        assertUSE(() -> Uri.from("%EX"), "Malformed percent-encoded octet");
+        assertIAE(() -> Uri.from("%EX"), "Malformed percent-encoded octet");
         // Empty scheme
-        assertUSE(() -> Uri.from(":"), "Expected scheme");
+        assertIAE(() -> Uri.from(":"), "Expected scheme");
         // Illegal scheme
-        assertUSE(() -> Uri.from("_:"), "Illegal character in scheme");
+        assertIAE(() -> Uri.from("_:"), "Illegal character in scheme");
         // Illegal userinfo
-        assertUSE(() -> Uri.from("a://<@a"), "Illegal character in userinfo");
+        assertIAE(() -> Uri.from("a://<@a"), "Illegal character in userinfo");
         // Illegal host
-        assertUSE(() -> Uri.from("a://<"), "Illegal character in host");
+        assertIAE(() -> Uri.from("a://<"), "Illegal character in host");
         // Illegal port
-        assertUSE(() -> Uri.from("a://a:-1"), "Illegal character in port");
+        assertIAE(() -> Uri.from("a://a:-1"), "Illegal character in port");
         // Illegal path
-        assertUSE(() -> Uri.from("a:<"), "Illegal character in path");
+        assertIAE(() -> Uri.from("a:<"), "Illegal character in path");
         // Illegal query
-        assertUSE(() -> Uri.from("?<"), "Illegal character in query");
+        assertIAE(() -> Uri.from("?<"), "Illegal character in query");
         // Illegal fragment
-        assertUSE(() -> Uri.from("#<"), "Illegal character in fragment");
+        assertIAE(() -> Uri.from("#<"), "Illegal character in fragment");
     }
 
     @Test
@@ -344,29 +344,12 @@ public class UriTest {
         } catch (Throwable t) {
             if (t instanceof IllegalArgumentException) {
                 if (reason == null) return;
-                Throwable cause = t.getCause();
-                if (cause == null) {
-                    assertEquals(reason, t.getMessage());
-                } else {
-                    UriSyntaxException use = (UriSyntaxException) t.getCause();
-                    assertEquals(reason, use.reason());
-                }
+                if (t instanceof UriSyntaxException)
+                    assertEquals(reason, ((UriSyntaxException) t).reason());
+                else assertEquals(reason, t.getMessage());
                 return;
             }
             fail("Not IAE", t);
-        }
-        fail("Exception not thrown");
-    }
-
-    private static void assertUSE(Executable e, String reason) {
-        try {
-            e.execute();
-        } catch (Throwable t) {
-            if (t instanceof UriSyntaxException) {
-                assertEquals(reason, ((UriSyntaxException) t).reason());
-                return;
-            }
-            fail("Not USE", t);
         }
         fail("Exception not thrown");
     }

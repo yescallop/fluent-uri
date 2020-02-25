@@ -56,11 +56,7 @@ final class UriImpl implements Uri {
         } else if (b.host != null) {
             host = b.host;
             if (host.indexOf(':') >= 0) {
-                try {
-                    checkIpv6Address(host, 0, host.length(), false);
-                } catch (UriSyntaxException e) {
-                    throw new IllegalArgumentException(e);
-                }
+                checkIpv6Address(host, 0, host.length(), false);
                 int pct = host.indexOf('%');
                 if (pct >= 0) { // scoped
                     int len = host.length();
@@ -94,7 +90,7 @@ final class UriImpl implements Uri {
         encodedFragment = b.fragment;
     }
 
-    UriImpl(String s) throws UriSyntaxException {
+    UriImpl(String s) {
         new Parser(s).parse();
     }
 
@@ -268,7 +264,7 @@ final class UriImpl implements Uri {
     }
 
     @Override
-    public Uri resolve(String uriStr) throws UriSyntaxException {
+    public Uri resolve(String uriStr) {
         return resolve(this, new UriImpl(uriStr));
     }
 
@@ -497,18 +493,8 @@ final class UriImpl implements Uri {
         private final String input;
 
         private Parser(String s) {
-            input = s;
             string = s;
-        }
-
-        // -- Methods for throwing URISyntaxException in various ways --
-
-        private void fail(String reason, int p) throws UriSyntaxException {
-            throw new UriSyntaxException(input, reason, p);
-        }
-
-        private void failExpecting(String expected, int p) throws UriSyntaxException {
-            fail("Expected " + expected, p);
+            input = s;
         }
 
         // Tells whether start < end and, if so, whether charAt(start) == c
@@ -532,18 +518,6 @@ final class UriImpl implements Uri {
             return res;
         }
 
-        // Scans the given char
-        private int scan(int start, int n, char ch) {
-            int p = start;
-            while (p < n) {
-                char cur = input.charAt(p);
-                if (cur == ch)
-                    break;
-                p++;
-            }
-            return p;
-        }
-
         // Scans the given char backwards
         private int scanBack(int start, int end, char ch, char stop) {
             for (int i = start; i >= end; i--) {
@@ -557,66 +531,8 @@ final class UriImpl implements Uri {
             return -1;
         }
 
-        // Scans a potential escape sequence, starting at the given position,
-        // with the given first char (i.e., charAt(start) == c).
-        private boolean scanPctEncoded(int start, int n, char first)
-                throws UriSyntaxException {
-            if (first == '%') {
-                // Process escape pair
-                if ((start + 3 <= n)
-                        && match(input.charAt(start + 1), L_HEXDIG, H_HEXDIG)
-                        && match(input.charAt(start + 2), L_HEXDIG, H_HEXDIG)) {
-                    return true;
-                }
-                fail("Malformed percent-encoded octet", start);
-            }
-            return false;
-        }
-
-        // Scans chars that match the given mask pair
-        private int scan(int start, int n, long lowMask, long highMask)
-                throws UriSyntaxException {
-            int p = start;
-            boolean allowPctEncoded = (lowMask & L_PCT_ENCODED) != 0;
-            while (p < n) {
-                char c = input.charAt(p);
-                if (match(c, lowMask, highMask)) {
-                    p++;
-                    continue;
-                }
-                if (allowPctEncoded) {
-                    boolean enc = scanPctEncoded(p, n, c);
-                    if (enc) {
-                        p += 3;
-                        continue;
-                    }
-                }
-                break;
-            }
-            return p;
-        }
-
-        // Checks that each of the chars in [start, end) matches the given mask
-        private void checkChars(int start, int end,
-                                long lowMask, long highMask,
-                                String what)
-                throws UriSyntaxException {
-            int p = scan(start, end, lowMask, highMask);
-            if (p < end)
-                fail("Illegal character in " + what, p);
-        }
-
-        // Checks that the char at position p matches the given mask
-        private void checkChar(int p,
-                               long lowMask, long highMask,
-                               String what)
-                throws UriSyntaxException {
-            if (!match(input.charAt(p), lowMask, highMask))
-                fail("Illegal character in " + what, p);
-        }
-
         // Parses the input string
-        private void parse() throws UriSyntaxException {
+        private void parse() {
             int n = input.length();
             if (n == 0) {
                 path = encodedPath = "";
@@ -630,13 +546,13 @@ final class UriImpl implements Uri {
             int sharp = delims[3];
 
             if (colon == 0)
-                failExpecting("scheme", 0);
+                fail(input, "Expected scheme", 0);
             if (sharp < qMark) qMark = n;
 
             int p = 0;
             if (colon < slash && colon < qMark && colon < sharp) {
-                checkChar(0, L_ALPHA, H_ALPHA, "scheme");
-                checkChars(1, colon, L_SCHEME, H_SCHEME, "scheme");
+                checkChar(input, 0, L_ALPHA, H_ALPHA, "scheme");
+                checkChars(input, 1, colon, L_SCHEME, H_SCHEME, "scheme");
                 scheme = input.substring(0, colon);
                 p = colon + 1;
             }
@@ -646,42 +562,42 @@ final class UriImpl implements Uri {
 
             if (hasQuery) { // query available
                 p = qMark + 1;
-                checkChars(p, sharp, L_QUERY_FRAGMENT, H_QUERY_FRAGMENT, "query");
+                checkChars(input, p, sharp, L_QUERY_FRAGMENT, H_QUERY_FRAGMENT, "query");
                 encodedQuery = input.substring(p, sharp);
             }
             if (sharp != n) { // fragment available
                 p = sharp + 1;
-                checkChars(p, n, L_QUERY_FRAGMENT, H_QUERY_FRAGMENT, "fragment");
+                checkChars(input, p, n, L_QUERY_FRAGMENT, H_QUERY_FRAGMENT, "fragment");
                 encodedFragment = input.substring(p, n);
             }
         }
 
         // Parses the hier-part
-        private void parseHierPart(int start, int n) throws UriSyntaxException {
+        private void parseHierPart(int start, int n) {
             int p = start;
             if (at(p, n, '/') && at(p + 1, n, '/')) {
                 p += 2;
-                int authEnd = scan(p, n, '/');
+                int authEnd = scan(input, p, n, '/');
                 parseAuthority(p, authEnd);
                 p = authEnd;
             }
-            checkChars(p, n, L_PATH, H_PATH, "path");
+            checkChars(input, p, n, L_PATH, H_PATH, "path");
             encodedPath = input.substring(p, n);
         }
 
         // Parses the authority
-        private void parseAuthority(int start, int n) throws UriSyntaxException {
+        private void parseAuthority(int start, int n) {
             int p = start;
-            int at = scan(p, n, '@');
+            int at = scan(input, p, n, '@');
             if (at != n) {
-                checkChars(p, at, L_USERINFO, H_USERINFO, "userinfo");
+                checkChars(input, p, at, L_USERINFO, H_USERINFO, "userinfo");
                 encodedUserInfo = input.substring(p, at);
                 p = at + 1;
             }
             int colon = scanBack(n - 1, p, ':', ']');
             if (colon >= 0) {
                 if (colon != n - 1) {
-                    checkChars(colon + 1, n, L_DIGIT, H_DIGIT, "port");
+                    checkChars(input, colon + 1, n, L_DIGIT, H_DIGIT, "port");
                     port = Integer.parseInt(input.substring(colon + 1, n));
                 }
                 n = colon;
@@ -689,7 +605,7 @@ final class UriImpl implements Uri {
             if (at(p, n, '[') && at(n - 1, n, ']')) {
                 checkIpv6Address(input, p + 1, n - 1, true);
             } else {
-                checkChars(p, n, L_REG_NAME, H_REG_NAME, "host");
+                checkChars(input, p, n, L_REG_NAME, H_REG_NAME, "host");
             }
             encodedHost = input.substring(p, n);
         }
