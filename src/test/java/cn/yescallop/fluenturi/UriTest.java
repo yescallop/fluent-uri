@@ -3,6 +3,8 @@ package cn.yescallop.fluenturi;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -44,6 +46,46 @@ public class UriTest {
 
         assertEquals("?%23", u.encodedFragment());
         assertEquals("?#", u.fragment());
+
+        // Examples in README.md
+        u = Uri.from("http://u%40@xn--h28h.com:80/fo%20o//bar/?k=v+1&k=v%262&k2&=#%23");
+        assertEquals("http", u.scheme());
+        assertEquals("u%40", u.encodedUserInfo());
+        assertEquals("u@", u.userInfo());
+        assertEquals("xn--h28h.com", u.encodedHost());
+        assertEquals("😃.com", u.host());
+        assertEquals(80, u.port());
+        assertEquals("/fo%20o//bar/", u.encodedPath());
+        assertEquals("/fo o//bar/", u.path());
+        List<String> ps = new ArrayList<>();
+        Collections.addAll(ps, "fo o", "", "bar", "");
+        assertIterableEquals(ps, u.pathSegments());
+        assertEquals("k=v+1&k=v%262&k2&=", u.encodedQuery());
+        params = u.queryParameters();
+        assertEquals(3, params.size());
+        ps.clear();
+        Collections.addAll(ps, "v 1", "v&2");
+        assertIterableEquals(ps, params.get("k"));
+        assertIterableEquals(Collections.singleton(null), params.get("k2"));
+        assertIterableEquals(Collections.singleton(""), params.get(""));
+        assertEquals("%23", u.encodedFragment());
+        assertEquals("#", u.fragment());
+
+        u = Uri.from("mailto:user@example.com?subject=test&body=parse");
+        assertEquals("mailto", u.scheme());
+        assertNull(u.encodedUserInfo());
+        assertNull(u.userInfo());
+        assertNull(u.encodedHost());
+        assertNull(u.host());
+        assertEquals(-1, u.port());
+        assertEquals("user@example.com", u.encodedPath());
+        assertEquals("user@example.com", u.path());
+        assertEquals("subject=test&body=parse", u.encodedQuery());
+        params = u.queryParameters();
+        assertIterableEquals(Collections.singleton("test"), params.get("subject"));
+        assertIterableEquals(Collections.singleton("parse"), params.get("body"));
+        assertNull(u.encodedFragment());
+        assertNull(u.fragment());
 
         // Empty
         u = Uri.from("");
@@ -191,7 +233,7 @@ public class UriTest {
                 .port(8080)
                 .path("/pa th/测")
                 .appendPathSegment("试")
-                .appendQueryParameter("k 1", "v&1")
+                .encodedQuery("k%201=v%261")
                 .appendQueryParameter("键", "v=2")
                 .fragment("?#")
                 .build();
@@ -199,6 +241,23 @@ public class UriTest {
 
         // Creating builder from Uri
         assertEquals(u, u.asBuilder().build());
+
+        // Example in README.md
+        u = Uri.newBuilder()
+                .scheme("http")
+                .encodedUserInfo("u%40")
+                .host("😃.com").port(80)
+                .path("/fo o")
+                .appendPathSegment("")
+                .appendPathSegment("")
+                .appendPathSegment("bar")
+                .appendPathSegment("")
+                .encodedQuery("k=v+1")
+                .appendQueryParameter("k", "v&2")
+                .appendQueryParameter("k2", null)
+                .appendQueryParameter("", "")
+                .fragment("#").build();
+        assertEquals("http://u%40@xn--h28h.com:80/fo%20o//bar/?k=v+1&k=v%262&k2&=#%23", u.toString());
 
         // From encoded components
         u = Uri.newBuilder()
@@ -215,10 +274,11 @@ public class UriTest {
         // Path appending
         u = Uri.newBuilder()
                 .path("foo/")
+                .appendPathSegment("")
                 .appendPathSegment("bar")
                 .appendPathSegment("")
                 .build();
-        assertEquals("foo/bar/", u.toString());
+        assertEquals("foo//bar/", u.toString());
 
         // Append path segment to empty builder
         u = Uri.newBuilder()

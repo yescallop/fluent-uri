@@ -108,14 +108,16 @@ final class UriBuilderImpl implements Uri.Builder {
         Objects.requireNonNull(segment);
         segment = encode(segment, L_PCHAR, H_PCHAR);
         if (pathBuilder == null) {
-            int len = path.length();
-            pathBuilder = new StringBuilder(len + segment.length() + 16);
+            pathBuilder = new StringBuilder(path.length() + segment.length() + 16);
             pathBuilder.append(path);
-            if (!path.isEmpty() && path.charAt(len - 1) != '/')
-                pathBuilder.append('/');
-        } else if (pathBuilder.charAt(pathBuilder.length() - 1) != '/') {
-            pathBuilder.append('/');
         }
+        if (segment.isEmpty()) {
+            pathBuilder.append('/');
+            return this;
+        }
+        int len = pathBuilder.length();
+        if (len != 0 && pathBuilder.charAt(len - 1) != '/')
+            pathBuilder.append('/');
         pathBuilder.append(segment);
         return this;
     }
@@ -132,21 +134,26 @@ final class UriBuilderImpl implements Uri.Builder {
 
     @Override
     public Uri.Builder appendQueryParameter(String name, String value) {
-        if (name == null || value == null)
+        if (name == null)
             throw new NullPointerException();
         name = encode(name, L_QUERY_PARAM, H_QUERY_PARAM);
-        value = encode(value, L_QUERY_PARAM, H_QUERY_PARAM);
+        if (value != null)
+            value = encode(value, L_QUERY_PARAM, H_QUERY_PARAM);
         if (queryBuilder == null) {
-            int len = query == null ? 0 : query.length();
-            queryBuilder = new StringBuilder(
-                    len + name.length() + value.length() + 16);
-            if (query != null) queryBuilder.append(query);
-        } else {
-            queryBuilder.append('&');
+            int len = name.length() + 16;
+            if (query != null) len += query.length();
+            if (value != null) len += value.length();
+            queryBuilder = new StringBuilder(len);
+            if (query != null)
+                queryBuilder.append(query);
         }
+        if (queryBuilder.length() != 0)
+            queryBuilder.append('&');
         queryBuilder.append(name);
-        queryBuilder.append('=');
-        queryBuilder.append(value);
+        if (value != null) {
+            queryBuilder.append('=');
+            queryBuilder.append(value);
+        }
         return this;
     }
 

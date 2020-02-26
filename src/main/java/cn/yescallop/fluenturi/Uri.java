@@ -241,6 +241,12 @@ public interface Uri {
 
         /**
          * Encodes and appends the given path segment to the current path.
+         * <p>
+         * If the given path segment is empty, a slash "/" is appended.
+         * <p>
+         * If not, a slash "/" would be appended if the current path is
+         * not empty and does not end with slash "/", and then the given
+         * path segment is appended.
          *
          * @param segment a path segment
          * @return this builder
