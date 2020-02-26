@@ -67,31 +67,33 @@ public class CharUtilsTest {
     }
 
     @Test
-    public void testCheckDnsHost() {
-        byte[] b = new byte[64];
+    public void testCheckHostname() {
+        byte[] b = new byte[66];
         Arrays.fill(b, (byte) 'a');
-        String[] compatibles = new String[]{
-                "a", "a.", "A-a", "a-A.B-b", "1.1.1.1",
+        b[64] = (byte) '.';
+        String[] compliantHosts = new String[]{
+                "a", "a.", "A-a", "a-A.B-b", "1.1.a",
                 new String(b, 0, 63, StandardCharsets.US_ASCII)
         };
-        String[] incompatibles = new String[]{
+        String[] nonCompliantHosts = new String[]{
                 "", ".", ".a", "a-", "-a",
                 "a.-a.a", "a.a-.a", "a..a",
-                "a@a", "a_a.com",
+                "a@a", "a_a.com", "1", "a.1.", "1.1.1.1", "a.b.1",
                 new String(new byte[254], StandardCharsets.US_ASCII),
+                new String(b, 0, 65, StandardCharsets.US_ASCII),
                 new String(b, StandardCharsets.US_ASCII)
         };
 
-        for (String s : compatibles) {
-            checkDnsHost(s);
+        for (String s : compliantHosts) {
+            checkHostname(s);
         }
-        for (String s : incompatibles) {
+        for (String s : nonCompliantHosts) {
             try {
-                checkDnsHost(s);
+                checkHostname(s);
             } catch (IllegalArgumentException e) {
                 continue;
             }
-            fail("Exception not thrown");
+            fail("Exception not thrown: " + s);
         }
     }
 

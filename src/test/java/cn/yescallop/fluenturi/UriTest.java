@@ -254,6 +254,12 @@ public class UriTest {
                 .build();
         assertEquals("//%E6%B5%8B%E8%AF%95", u.toString());
 
+        // IPv4 host
+        u = Uri.newBuilder()
+                .host("127.0.0.1")
+                .build();
+        assertEquals("//127.0.0.1", u.toString());
+
         // IPv6 host
         u = Uri.newBuilder()
                 .host("fe80::ebad:9145:fe66:55cc%a+b") // scoped

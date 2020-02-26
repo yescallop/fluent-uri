@@ -208,7 +208,7 @@ public interface Uri {
         /**
          * Sets the encoding option for host.
          * <p>
-         * The default value is {@link HostEncodingOption#DNS_COMPATIBLE}.
+         * The default value is {@link HostEncodingOption#DNS_COMPLIANT}.
          *
          * @param option the encoding option
          * @return this builder
@@ -313,11 +313,11 @@ public interface Uri {
          */
         PERCENT_ENCODED,
         /**
-         * Encodes the host with IDNA encoding defined in
+         * Encodes the host with IDNA encoding described in
          * <a href="https://www.ietf.org/rfc/rfc3490.html">RFC 3490</a>,
          * using the method in {@link java.net.IDN}, and checks whether
-         * the encoded host name conforms to the DNS syntax.
+         * the encoded hostname is compliant with DNS.
          */
-        DNS_COMPATIBLE
+        DNS_COMPLIANT
     }
 }

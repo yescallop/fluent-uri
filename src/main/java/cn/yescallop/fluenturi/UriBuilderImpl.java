@@ -17,7 +17,7 @@ final class UriBuilderImpl implements Uri.Builder {
     String userInfo;
     String host;
     String encodedHost;
-    HostEncodingOption hostEncodingOption = HostEncodingOption.DNS_COMPATIBLE;
+    HostEncodingOption hostEncodingOption = HostEncodingOption.DNS_COMPLIANT;
     int port = -1;
     String path = "";
     StringBuilder pathBuilder;

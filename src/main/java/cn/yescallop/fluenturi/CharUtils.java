@@ -367,64 +367,71 @@ public final class CharUtils {
             fail(input, "Illegal character in " + what, p);
     }
 
-    // Checks that the given host is a legal DNS host.
-    // References: RFC 952, 1034, 1123, 2181
-    // TODO: Correct the syntax
-    static void checkDnsHost(String host) {
+    // Checks that the given host is compliant with DNS.
+    // Reference: https://en.wikipedia.org/wiki/Domain_Name_System#Domain_name_syntax,_internationalization
+    static void checkHostname(String host) {
         int len = host.length();
         if (len == 0)
             throw new IllegalArgumentException("Empty host");
         if (len > 253)
             throw new IllegalArgumentException("Host length > 253 for DNS");
         int lastLabelStart = 0;
-        boolean lastDash = false;
+        boolean lastHyphen = false;
+        boolean digitOnly = true;
         char c;
         for (int i = 0; i <= len; i++) {
             if (i == len) {
-                if (lastDash) break;
-                if (i - lastLabelStart > 63) break;
+                if (lastHyphen || digitOnly
+                        || i - lastLabelStart > 63) break;
                 return;
             } else if ((c = host.charAt(i)) == '.') {
-                if (lastLabelStart == i || lastDash) break;
-                if (i - lastLabelStart > 63) break;
+                if (i == len - 1) continue;
+                if (lastLabelStart == i || lastHyphen
+                        || i - lastLabelStart > 63) break;
                 lastLabelStart = i + 1;
-                lastDash = false;
+                lastHyphen = false;
+                digitOnly = true;
             } else if (c == '-') {
                 if (lastLabelStart == i) break;
-                lastDash = true;
+                digitOnly = false;
+                lastHyphen = true;
             } else {
-                if (!match(c, L_ALPHA | L_DIGIT, H_ALPHA | H_DIGIT))
+                if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+                    digitOnly = false;
+                } else if (c < '0' || c > '9') {
                     break;
-                lastDash = false;
+                }
+                lastHyphen = false;
             }
         }
-        throw new IllegalArgumentException("Host syntax incompatible for DNS: " + host);
+        throw new IllegalArgumentException("Host syntax not compliant with DNS: " + host);
     }
 
-    // Checks that the given substring contains a legal IPv6 address.
+    // Checks that the given substring contains a legal IPv6 address,
+    // and returns the first occurrence index of "%" or -1.
     // References: Section 3.2.2, RFC 3986; Section 2, RFC 6874
-    static void checkIpv6Address(String s, int start, int n, boolean encoded) {
+    static int checkIpv6Address(String s, int start, int n, boolean encoded) {
         int len = n - start;
         if (len < 2) fail(s, "Illegal IPv6 address", start);
 
-        int p = scan(s, start, n, '%');
-        if (p != n) {
-            int z;
+        int pct = scan(s, start, n, '%');
+        if (pct != n) {
+            int zoneIdStart;
             if (encoded) {
-                if (p + 2 >= n
-                        || s.charAt(p + 1) != '2'
-                        || s.charAt(p + 2) != '5') {
-                    fail(s, "Expected %25", p);
+                if (pct + 2 >= n
+                        || s.charAt(pct + 1) != '2'
+                        || s.charAt(pct + 2) != '5') {
+                    fail(s, "Expected %25", pct);
                 }
-                z = p + 3;
-                if (scan(s, z, n, L_ZONE_ID, H_ZONE_ID) < n)
-                    fail(s, "Illegal character in zone ID", z);
-            } else z = p + 1;
-            if (z == n)
-                fail(s, "Expected zone ID", z);
+                zoneIdStart = pct + 3;
+                if (scan(s, zoneIdStart, n, L_ZONE_ID, H_ZONE_ID) < n)
+                    fail(s, "Illegal character in zone ID", zoneIdStart);
+            } else zoneIdStart = pct + 1;
+            if (zoneIdStart == n)
+                fail(s, "Expected zone ID", zoneIdStart);
 
-            n = p;
-        }
+            n = pct;
+        } else pct = -1;
 
         len = n - start;
         // longest: 0000:0000:0000:0000:0000:0000:255.255.255.255
@@ -454,7 +461,7 @@ public final class CharUtils {
                 } else {
                     // hex seq len > 4
                     if (i - lastColon > 5)
-                        fail(s, "Hex sequence too long", lastColon + 1);
+                        fail(s, "Hex sequence too long in IPv6 address", lastColon + 1);
                 }
                 minSeqCount++;
                 lastColon = i;
@@ -469,10 +476,11 @@ public final class CharUtils {
         }
         if (minSeqCount > 8)
             fail(s, "IPv6 address too long", start);
+        return pct;
     }
 
     // IPv4address = dec-octet "." dec-octet "." dec-octet "." dec-octet
-    private static boolean isIpv4Address(String s, int start, int n) {
+    static boolean isIpv4Address(String s, int start, int n) {
         int len = n - start;
         // shortest: 0.0.0.0
         // longest: 255.255.255.255

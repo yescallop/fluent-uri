@@ -56,8 +56,7 @@ final class UriImpl implements Uri {
         } else if (b.host != null) {
             host = b.host;
             if (host.indexOf(':') >= 0) {
-                checkIpv6Address(host, 0, host.length(), false);
-                int pct = host.indexOf('%');
+                int pct = checkIpv6Address(host, 0, host.length(), false);
                 if (pct >= 0) { // scoped
                     int len = host.length();
                     String zoneId = encode(host.substring(pct + 1, len), L_ZONE_ID, H_ZONE_ID);
@@ -71,14 +70,16 @@ final class UriImpl implements Uri {
                 } else { // not scoped
                     encodedHost = '[' + host + ']';
                 }
-            } else {
-                boolean dnsCompatible = b.hostEncodingOption == HostEncodingOption.DNS_COMPATIBLE;
-                if (dnsCompatible) {
+            } else if (isIpv4Address(host, 0, host.length())) {
+                encodedHost = host;
+            } else switch (b.hostEncodingOption) {
+                case DNS_COMPLIANT:
                     encodedHost = IDN.toASCII(host, IDN.ALLOW_UNASSIGNED);
-                    checkDnsHost(encodedHost);
-                } else {
+                    checkHostname(encodedHost);
+                    break;
+                case PERCENT_ENCODED:
                     encodedHost = encode(host, L_REG_NAME, H_REG_NAME);
-                }
+                    break;
             }
         }
         if (encodedHost != null) {
